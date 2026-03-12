@@ -24,7 +24,6 @@ diesel = { workspace = true, features = ["postgres", "uuid", "chrono", "r2d2"] }
 diesel_migrations.workspace = true
 async-trait.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
-tracing-tree.workspace = true
 uuid = { workspace = true, features = ["v4", "serde"] }
 chrono = { workspace = true, features = ["serde"] }
 serde_json.workspace = true
@@ -41,3 +40,4 @@ serde_urlencoded = "0.7.1"
 testcontainers.workspace = true
 testcontainers-modules = { workspace = true, features = ["postgres"] }
 tokio = { workspace = true, features = ["full"] }
+futures = "0.3"
