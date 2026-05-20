@@ -108,16 +108,18 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
-          workspaces: "backend"
+          workspaces: "."
 
       - name: Build binaries (amd64)
+        working-directory: .
         run: |
           sudo apt-get install -y libpq-dev
-          cargo build --release --target x86_64-unknown-linux-gnu
+          cargo build --release --target x86_64-unknown-linux-gnu --package focus_flow_cloud
           # Remove amd64 libs to clean up for arm64 build
           sudo apt-get remove -y libpq-dev libpq5
 
       - name: Build binaries (arm64)
+        working-directory: .
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           PKG_CONFIG_libpq_aarch64_unknown_linux_gnu: /usr/lib/aarch64-linux-gnu/pkgconfig
@@ -126,14 +128,14 @@ jobs:
           PKG_CONFIG_ALLOW_CROSS: 1
         run: |
           sudo apt-get install -y gcc-aarch64-linux-gnu libpq-dev:arm64
-          cargo build --release --target aarch64-unknown-linux-gnu
+          cargo build --release --target aarch64-unknown-linux-gnu --package focus_flow_cloud
 
 
 
       - name: Prepare binaries
         run: |
-          cp target/x86_64-unknown-linux-gnu/release/focus_flow_cloud ./focus_flow_cloud-amd64
-          cp target/aarch64-unknown-linux-gnu/release/focus_flow_cloud ./focus_flow_cloud-arm64
+          cp ../target/x86_64-unknown-linux-gnu/release/focus_flow_cloud ./focus_flow_cloud-amd64
+          cp ../target/aarch64-unknown-linux-gnu/release/focus_flow_cloud ./focus_flow_cloud-arm64
 
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
