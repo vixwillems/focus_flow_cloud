@@ -3,6 +3,7 @@ use shared::task::TaskPriority;
 
 use crate::{
     components::progress::{Progress, ProgressIndicator},
+    i18n::use_i18n,
     use_cases::tasks::task_list_uc::{TaskDue, TaskSchedule, TodoTask},
 };
 
@@ -26,20 +27,18 @@ pub struct TaskRowProps {
 #[component]
 pub fn TaskRow(props: TaskRowProps) -> Element {
     let task = &props.task;
+    let i18n = use_i18n();
 
-    // ── sheet contexts (provided by parent view) ──────────────────────────
     let prio_sheet_ctx =
         dioxus::core::try_consume_context::<Signal<Option<(String, Option<TaskPriority>)>>>();
     let date_sheet_ctx =
         dioxus::core::try_consume_context::<Signal<Option<(String, TaskSchedule)>>>();
 
-    // ── menu state ───────────────────────────────────────────────────────
     let mut expanded = use_signal(|| false);
     let mut show_menu = use_signal(|| false);
     let mut menu_x: Signal<f64> = use_signal(|| 0.0);
     let mut menu_y: Signal<f64> = use_signal(|| 0.0);
 
-    // ── derived display values ───────────────────────────────────────────
     let (due_mod, is_overdue, is_today) = match &task.due {
         TaskDue::Overdue(_) => ("overdue", true, false),
         TaskDue::Today(_) => ("today", false, true),
@@ -73,13 +72,14 @@ pub fn TaskRow(props: TaskRowProps) -> Element {
         c
     };
 
-    let (p_lvl, p_lbl) = match task.priority {
-        Some(TaskPriority::Low) => ("low", "LOW"),
-        Some(TaskPriority::Medium) => ("medium", "MED"),
-        Some(TaskPriority::High) => ("high", "HIGH"),
-        Some(TaskPriority::Urgent) => ("urgent", "URGENT"),
-        None => ("none", "—"),
+    let (p_lvl, p_lbl_key) = match task.priority {
+        Some(TaskPriority::Low) => ("low", "task_row.priority_low"),
+        Some(TaskPriority::Medium) => ("medium", "task_row.priority_med"),
+        Some(TaskPriority::High) => ("high", "task_row.priority_high"),
+        Some(TaskPriority::Urgent) => ("urgent", "task_row.priority_urgent"),
+        None => ("none", "task_row.priority_none"),
     };
+    let p_lbl = i18n.read().t(p_lbl_key);
 
     let subtask_total = task.subtasks.len();
     let subtask_done = task.subtasks.iter().filter(|s| s.is_completed).count();
@@ -101,7 +101,6 @@ pub fn TaskRow(props: TaskRowProps) -> Element {
     let has_add_subtask = on_add_subtask.is_some();
     let add_task_id = task.id.clone();
     let mut new_subtask_title = use_signal(String::new);
-
     let has_explicit_date = task.due_date_set;
 
     struct SubtaskItem {
@@ -166,7 +165,7 @@ pub fn TaskRow(props: TaskRowProps) -> Element {
                         button {
                             class: "todo-priority todo-priority-{p_lvl}",
                             r#type: "button",
-                            title: "Tap to change priority",
+                            title: i18n.read().t("task_row.tap_to_change_priority"),
                             onclick: move |e| {
                                 e.stop_propagation();
                                 if let Some(mut ctx) = prio_sheet_ctx {
@@ -216,7 +215,7 @@ pub fn TaskRow(props: TaskRowProps) -> Element {
                                     if has_explicit_date {
                                         "{due_display}"
                                         if is_all_day {
-                                            span { class: "todo-due-time", " · all day" }
+                                            span { class: "todo-due-time", " · {i18n.read().t(\"task_row.all_day\")}" }
                                         } else if let Some(t) = task.due_time.as_deref() {
                                             span { class: "todo-due-time", " {t}" }
                                             if let Some(ref end) = end_time {
@@ -224,7 +223,7 @@ pub fn TaskRow(props: TaskRowProps) -> Element {
                                             }
                                         }
                                     } else {
-                                        "No date"
+                                        "{i18n.read().t(\"task_row.no_date\")}"
                                     }
                                 }
                             }
@@ -305,7 +304,7 @@ pub fn TaskRow(props: TaskRowProps) -> Element {
                             input {
                                 class: "todo-subtask-input",
                                 r#type: "text",
-                                placeholder: "Add subtask…",
+                                placeholder: i18n.read().t("task_row.add_subtask_placeholder"),
                                 value: "{new_subtask_title}",
                                 oninput: move |e| new_subtask_title.set(e.value()),
                                 onkeydown: move |e| {
@@ -353,7 +352,7 @@ pub fn TaskRow(props: TaskRowProps) -> Element {
                             line { x1: "8", y1: "9", x2: "10", y2: "8", stroke: "currentColor", stroke_width: "1.6", stroke_linecap: "round" }
                             line { x1: "5", y1: "2", x2: "11", y2: "2", stroke: "currentColor", stroke_width: "1.6", stroke_linecap: "round" }
                         }
-                        "Start timer"
+                        "{i18n.read().t(\"task_row.start_timer\")}"
                     }
                 }
                 button {
@@ -368,7 +367,7 @@ pub fn TaskRow(props: TaskRowProps) -> Element {
                         polyline { points: "3 6 13 6", stroke: "currentColor", stroke_width: "1.6", fill: "none", stroke_linecap: "round" }
                         path { d: "M5 6V4h6v2M4 6v8a1 1 0 001 1h6a1 1 0 001-1V6", stroke: "currentColor", stroke_width: "1.6", fill: "none", stroke_linecap: "round", stroke_linejoin: "round" }
                     }
-                    "Delete"
+                    "{i18n.read().t(\"task_row.delete\")}"
                 }
             }
         }
