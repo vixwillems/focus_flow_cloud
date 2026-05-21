@@ -288,6 +288,12 @@ jobs:
           $bundleDir = Get-ChildItem -Path "target/dx/focus_flow_app/release/windows" -Directory | Select-Object -First 1
           Compress-Archive -Path "$($bundleDir.FullName)/*" -DestinationPath "focus_flow_app-windows.zip"
 
+      - name: Package Android bundle
+        if: matrix.target == 'android'
+        run: |
+          APK_PATH=$(find target/dx/focus_flow_app/release/android -name "*.apk" | head -1)
+          cp "$APK_PATH" focus_flow_app-android.apk
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -296,6 +302,7 @@ jobs:
             focus_flow_app/focus_flow_app-macos.dmg
             focus_flow_app/focus_flow_app-linux.tar.gz
             focus_flow_app/focus_flow_app-windows.zip
+            focus_flow_app/focus_flow_app-android.apk
           if-no-files-found: ignore
 
       - name: Cancel Workflow on Failure
@@ -334,6 +341,7 @@ jobs:
             release_assets/**/*.dmg
             release_assets/**/*.tar.gz
             release_assets/**/*.zip
+            release_assets/**/*.apk
           generate_release_notes: true
           fail_on_unmatched_files: false
 
