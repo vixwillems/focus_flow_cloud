@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [5.0.5] - 2026-05-25
+
+### Bug Fixes
+
+- Fix build
+
+### Other
+
+- Merge branch 'master' of https://github.com/francesco-gaglione/focus_flow_cloud
+
 ## [5.0.4] - 2026-05-25
 
 ### Bug Fixes
