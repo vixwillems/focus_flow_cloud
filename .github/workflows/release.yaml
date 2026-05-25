@@ -259,27 +259,27 @@ jobs:
         if: matrix.target == 'android'
         run: |
           mkdir -p ~/.gradle/init.d
-          cat > ~/.gradle/init.d/wry-proguard.gradle << 'EOF'
-allprojects {
-    afterEvaluate { project ->
-        if (project.plugins.hasPlugin('com.android.application')) {
-            def rulesFile = new File(project.buildDir, 'generated/wry-keep.pro')
-            rulesFile.parentFile.mkdirs()
-            rulesFile.text = '''\
--keep class dev.dioxus.main.** { *; }
--keepclassmembers class dev.dioxus.main.WryActivity {
-    public void setWebView(...);
-}
-'''
-            project.android.buildTypes.each { buildType ->
-                if (buildType.name == 'release') {
-                    buildType.proguardFile(rulesFile)
-                }
-            }
-        }
-    }
-}
-EOF
+          printf '%s\n' \
+            'allprojects {' \
+            '    afterEvaluate { project ->' \
+            '        if (project.plugins.hasPlugin("com.android.application")) {' \
+            '            def rulesFile = new File(project.buildDir, "generated/wry-keep.pro")' \
+            '            rulesFile.parentFile.mkdirs()' \
+            '            rulesFile.text = """\\' \
+            '-keep class dev.dioxus.main.** { *; }' \
+            '-keepclassmembers class dev.dioxus.main.WryActivity {' \
+            '    public void setWebView(...);' \
+            '}' \
+            '"""' \
+            '            project.android.buildTypes.each { buildType ->' \
+            '                if (buildType.name == "release") {' \
+            '                    buildType.proguardFile(rulesFile)' \
+            '                }' \
+            '            }' \
+            '        }' \
+            '    }' \
+            '}' \
+            > ~/.gradle/init.d/wry-proguard.gradle
 
       - name: Bundle (${{ matrix.target }})
         if: matrix.target != 'android'
