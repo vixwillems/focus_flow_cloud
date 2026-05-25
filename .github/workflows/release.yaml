@@ -265,7 +265,7 @@ jobs:
             '        if (project.plugins.hasPlugin("com.android.application")) {' \
             '            def rulesFile = new File(project.buildDir, "generated/wry-keep.pro")' \
             '            rulesFile.parentFile.mkdirs()' \
-            '            rulesFile.text = """\\' \
+            '            rulesFile.text = """\' \
             '-keep class dev.dioxus.main.** { *; }' \
             '-keepclassmembers class dev.dioxus.main.WryActivity {' \
             '    public void setWebView(...);' \
