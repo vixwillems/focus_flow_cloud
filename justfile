@@ -54,116 +54,38 @@ backend-check: backend-fmt-check backend-lint backend-test
     @echo "Backend checks passed!"
 
 # ============================================================================
-# PWA (React + Vite)
+# PWA (SvelteKit)
 # ============================================================================
-
-# Generate PWA type definitions
-pwa-generate-types:
-    cd pwa && bun run generate:types
 
 # Run PWA dev server
 pwa-dev:
-    cd pwa && bun run generate:types && bunx --bun vite --host
+    cd pwa && bun run dev
 
 # Build PWA for production
 pwa-build:
-    cd pwa && bunx --bun vite build
+    cd pwa && bun run build
 
 # Preview PWA production build
 pwa-preview:
-    cd pwa && bunx --bun vite preview
+    cd pwa && bun run preview
+
+# Type-check PWA
+pwa-check:
+    cd pwa && bun run check
 
 # Install PWA dependencies
 pwa-install:
     cd pwa && bun install
 
 # ============================================================================
-# APP (Dioxus)
-# ============================================================================
-
-# Build app (debug)
-app-build:
-    cd focus_flow_app && dx build
-
-# Build app (release)
-app-build-release:
-    cd focus_flow_app && dx bundle --release
-
-# Serve app (web, hot reload)
-app-serve:
-    cd focus_flow_app && dx serve
-
-# Serve app (desktop)
-app-serve-desktop:
-    cd focus_flow_app && dx serve --platform desktop --port 9090
-
-# Serve app (iOS)
-app-serve-ios:
-    cd focus_flow_app && dx serve --platform ios --port 9090
-
-# Patch iOS bundle with icons (run in a second terminal while dx serve --ios is running)
-app-patch-ios-icons:
-    python3 scripts/patch_ios_icons.py
-
-# Bundle iOS for deployment (build + patch icons + install to simulator)
-app-bundle-ios:
-    cd focus_flow_app && dx bundle --ios
-    python3 scripts/patch_ios_icons.py
-
-# Serve app (iOS)
-app-serve-android:
-    cd focus_flow_app && dx serve --platform android --port 9090
-
-# Run app tests
-app-test:
-    cd focus_flow_app && cargo test
-
-# Check app formatting
-app-fmt-check:
-    cd focus_flow_app && cargo fmt --all -- --check
-
-# Lint app
-app-lint:
-    cd focus_flow_app && cargo clippy -- -D warnings
-
-# Run all app checks
-app-check: app-fmt-check app-lint app-test
-    @echo "App checks passed!"
-
-# ============================================================================
-# FLUTTER APP
-# ============================================================================
-
-# Generate Freezed & JSON code files
-flutter-codegen:
-    cd focus_flow_flutter && dart run build_runner build --delete-conflicting-outputs
-
-# Watch and generate Freezed & JSON code files in background
-flutter-codegen-watch:
-    cd focus_flow_flutter && dart run build_runner watch --delete-conflicting-outputs
-
-# Analyze Flutter codebase
-flutter-analyze:
-    cd focus_flow_flutter && flutter analyze
-
-# Run Flutter tests
-flutter-test:
-    cd focus_flow_flutter && flutter test
-
-# Run Flutter app locally
-flutter-run:
-    cd focus_flow_flutter && flutter run
-
-# Clean and fetch Flutter dependencies
-flutter-clean:
-    cd focus_flow_flutter && flutter clean && flutter pub get
-
-# ============================================================================
 # Doc
 
 # ============================================================================
 doc-serve:
-    cd doc && npx docusaurus start
+    cd doc && bun run start
+
+doc-build:
+    cd doc && bun run build
 
 # ============================================================================
 # GLOBAL
@@ -172,11 +94,11 @@ doc-serve:
 # Install all dependencies
 install:
     cd backend && cargo fetch
-    cd focus_flow_app && cargo fetch
+    cd pwa && bun install
     @echo "Dependencies installed."
 
-# Run all tests (backend and app)
-test-all: backend-test app-test
+# Run all tests
+test-all: backend-test pwa-check
 
 # Check everything
 check-all: backend-check app-check
@@ -295,7 +217,7 @@ _bump_semver part target:
 
     # Paths
     be_cargo = 'backend/Cargo.toml'
-    app_cargo = 'focus_flow_app/Cargo.toml'
+    pwa_pkg = 'pwa/package.json'
 
     files_to_commit = []
     tag_name = ''
@@ -306,7 +228,6 @@ _bump_semver part target:
         next_v = bump(curr, part)
         print(f'Bumping Backend: {curr} -> {next_v}')
 
-        # Sed command replacement with python regex
         with open(be_cargo, 'r') as f: s = f.read()
         s = re.sub(r'(^version = \")(.*?)(\")', f'\\\\g<1>{next_v}\\\\g<3>', s, flags=re.MULTILINE)
         with open(be_cargo, 'w') as f: f.write(s)
@@ -315,19 +236,19 @@ _bump_semver part target:
         if target == 'backend':
             tag_name = f'backend-v{next_v}'
 
-    # 2. Bump App
-    if target in ['app', 'both']:
-        curr = get_version(app_cargo, r'^version = \"(.*?)\"')
+    # 2. Bump PWA
+    if target in ['pwa', 'both']:
+        curr = get_version(pwa_pkg, r'\"version\":\s*\"(.*?)\"')
         next_v = bump(curr, part)
-        print(f'Bumping App: {curr} -> {next_v}')
+        print(f'Bumping PWA: {curr} -> {next_v}')
 
-        with open(app_cargo, 'r') as f: s = f.read()
-        s = re.sub(r'(^version = \")(.*?)(\")', f'\\\\g<1>{next_v}\\\\g<3>', s, flags=re.MULTILINE)
-        with open(app_cargo, 'w') as f: f.write(s)
+        with open(pwa_pkg, 'r') as f: s = f.read()
+        s = re.sub(r'(\"version\":\s*\")(.*?)(\")', f'\\\\g<1>{next_v}\\\\g<3>', s)
+        with open(pwa_pkg, 'w') as f: f.write(s)
 
-        files_to_commit.append(app_cargo)
-        if target == 'app':
-            tag_name = f'app-v{next_v}'
+        files_to_commit.append(pwa_pkg)
+        if target == 'pwa':
+            tag_name = f'pwa-v{next_v}'
         # If target is both, use simple vX.Y.Z tag
 
     # 3. Determine Tag for 'both'
