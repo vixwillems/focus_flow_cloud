@@ -34,7 +34,8 @@
     }
 </script>
 
-<nav class="fixed bottom-0 left-0 right-0 z-20 border-t border-surface-700 bg-surface-950">
+<nav class="fixed bottom-0 left-0 right-0 z-20 border-t border-surface-700 bg-surface-950"
+    style="padding-bottom: env(safe-area-inset-bottom)">
     <div
         class="grid"
         style="grid-template-columns: repeat({tabs.length}, minmax(0, 1fr))"

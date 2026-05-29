@@ -46,7 +46,8 @@
     <SideDrawer open={drawerOpen} onClose={() => (drawerOpen = false)} />
 
     <header
-        class="shrink-0 flex items-center gap-3 px-4 pt-2 pb-4 bg-surface-950 relative z-10"
+        class="shrink-0 flex items-center gap-3 px-4 pb-4 bg-surface-950 relative z-10"
+        style="padding-top: max(0.5rem, env(safe-area-inset-top))"
     >
         <button
             class="btn btn-icon preset-tonal-surface size-9"
