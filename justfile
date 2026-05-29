@@ -101,7 +101,7 @@ install:
 test-all: backend-test pwa-check
 
 # Check everything
-check-all: backend-check app-check
+check-all: backend-check pwa-check
 
 # Build Docker image for backend
 docker-build-backend:
