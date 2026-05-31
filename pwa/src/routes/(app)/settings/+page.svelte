@@ -36,7 +36,7 @@
 </script>
 
 <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
-    <div class="flex-1 overflow-y-auto pb-32 px-4 pt-3">
+    <div class="flex-1 overflow-y-auto pb-24 px-4 pt-3">
 
         <SettingsSection title="Appearance">
             <label class="label">

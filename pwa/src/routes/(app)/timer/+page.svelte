@@ -91,7 +91,7 @@
 
 <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
     <div
-        class="flex-1 overflow-y-auto pb-32 flex flex-col items-center px-4 pt-4 gap-4"
+        class="flex-1 overflow-y-auto pb-24 flex flex-col items-center px-4 pt-4 gap-4"
     >
         <div class="w-full flex items-center justify-between">
             {#if $timerStore.selectedTask}

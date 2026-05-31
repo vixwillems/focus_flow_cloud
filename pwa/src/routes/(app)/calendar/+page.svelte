@@ -161,7 +161,7 @@
 
     <!-- MONTH VIEW -->
     {#if view === 'month'}
-        <div class="flex-1 overflow-y-auto pb-32">
+        <div class="flex-1 overflow-y-auto pb-24">
             <div class="grid grid-cols-7 px-2 pt-2">
                 {#each DOW as d (d)}
                     <div class="text-center text-[10px] font-mono text-surface-500 uppercase tracking-wider py-1">{d}</div>

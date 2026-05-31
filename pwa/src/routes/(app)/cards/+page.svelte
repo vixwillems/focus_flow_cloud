@@ -1,4 +1,4 @@
-<div class="flex-1 flex flex-col items-center justify-center gap-4 text-center px-6 pb-32">
+<div class="flex-1 flex flex-col items-center justify-center gap-4 text-center px-6 pb-24">
     <div class="size-16 bg-surface-800 border border-surface-700 rounded-xl grid place-items-center">
         <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" fill="none" stroke-width="1.5" class="text-surface-400">
             <rect x="3" y="5" width="18" height="14" rx="2" />

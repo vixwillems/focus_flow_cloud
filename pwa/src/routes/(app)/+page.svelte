@@ -84,7 +84,7 @@
 </script>
 
 <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
-    <div class="flex-1 overflow-y-auto pb-32">
+    <div class="flex-1 overflow-y-auto pb-24">
         {#if $tasksQuery.isPending}
             <div
                 class="flex items-center justify-center py-16 text-surface-500 text-sm font-mono"
