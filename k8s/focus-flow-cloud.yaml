@@ -59,6 +59,11 @@ spec:
                 secretKeyRef:
                   name: focus-flow-cloud-secret
                   key: JWT_SECRET
+            - name: VAPID_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: focus-flow-cloud-secret
+                  key: VAPID_PRIVATE_KEY
             - name: APP_ENV
               valueFrom:
                 configMapKeyRef:
