@@ -13,9 +13,9 @@
         LongBreak: "Long Break",
     };
     const SESSION_TARGETS: Record<string, number> = {
-        Work: 25 * 60,
-        ShortBreak: 5 * 60,
-        LongBreak: 15 * 60,
+        Work: 60 * 60,
+        ShortBreak: 10 * 60,
+        LongBreak: 30 * 60,
     };
 
     const qc = useQueryClient();
@@ -73,16 +73,16 @@
 
     let remaining = $derived.by(() => {
         void tick;
-        if (!session) return 25 * 60;
+        if (!session) return 60 * 60;
         const now = Math.floor(Date.now() / 1000);
         const elapsed = Math.max(0, now - session.sessionStartTime);
-        const target = SESSION_TARGETS[session.sessionType] ?? 25 * 60;
+        const target = SESSION_TARGETS[session.sessionType] ?? 60 * 60;
         return Math.max(0, target - elapsed);
     });
 
     let progress = $derived.by(() => {
         if (!session) return 0;
-        const target = SESSION_TARGETS[session.sessionType] ?? 25 * 60;
+        const target = SESSION_TARGETS[session.sessionType] ?? 60 * 60;
         return 1 - remaining / target;
     });
 
