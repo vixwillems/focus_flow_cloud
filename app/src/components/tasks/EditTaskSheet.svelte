@@ -57,7 +57,7 @@
     let duration = $state(
         task.schedule.type === "span"
             ? Math.round(task.schedule.duration / 60)
-            : 25,
+            : 60,
     );
 
     function buildSchedule(): TaskScheduleDto {
