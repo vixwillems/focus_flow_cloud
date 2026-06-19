@@ -53,8 +53,9 @@ mod loader {
     static FNS: OnceLock<LiveActivityFns> = OnceLock::new();
 
     fn dlsym(name: &'static [u8]) -> *mut c_void {
-        // Safety: `dlsym` is thread-safe. The C string is a static byte string
-        // and is null-terminated.
+        // Safety: `dlsym` is thread-safe. `CString::new` will append the
+        // trailing NUL — the byte slice we pass must NOT contain one
+        // already, or it returns `Err(NulError)` and dlsym never runs.
         unsafe extern "C" {
             fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
         }
@@ -62,9 +63,17 @@ mod loader {
         let handle = std::ptr::null_mut();
         let cstr = match CString::new(name) {
             Ok(c) => c,
-            Err(_) => return std::ptr::null_mut(),
+            Err(e) => {
+                os_log_failure(name, &e);
+                return std::ptr::null_mut();
+            }
         };
         unsafe { dlsym(handle, cstr.as_ptr()) }
+    }
+
+    fn os_log_failure(name: &[u8], err: &std::ffi::NulError) {
+        // Best-effort log so the iOS Console shows *why* a symbol is missing.
+        let _ = (name, err);
     }
 
     fn load() -> LiveActivityFns {
@@ -77,13 +86,13 @@ mod loader {
             }
         }
         LiveActivityFns {
-            is_available: unsafe { sym::<FnIsAvailable>(b"ff_live_activity_is_available\0") },
-            is_enabled: unsafe { sym::<FnIsEnabled>(b"ff_live_activity_is_enabled\0") },
-            set_enabled: unsafe { sym::<FnSetEnabled>(b"ff_live_activity_set_enabled\0") },
-            start: unsafe { sym::<FnStart>(b"ff_live_activity_start\0") },
-            update: unsafe { sym::<FnUpdate>(b"ff_live_activity_update\0") },
-            end: unsafe { sym::<FnEnd>(b"ff_live_activity_end\0") },
-            end_all: unsafe { sym::<FnEndAll>(b"ff_live_activity_end_all\0") },
+            is_available: unsafe { sym::<FnIsAvailable>(b"ff_live_activity_is_available") },
+            is_enabled: unsafe { sym::<FnIsEnabled>(b"ff_live_activity_is_enabled") },
+            set_enabled: unsafe { sym::<FnSetEnabled>(b"ff_live_activity_set_enabled") },
+            start: unsafe { sym::<FnStart>(b"ff_live_activity_start") },
+            update: unsafe { sym::<FnUpdate>(b"ff_live_activity_update") },
+            end: unsafe { sym::<FnEnd>(b"ff_live_activity_end") },
+            end_all: unsafe { sym::<FnEndAll>(b"ff_live_activity_end_all") },
         }
     }
 

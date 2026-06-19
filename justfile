@@ -118,9 +118,11 @@ check-all:
     cd app && bun run build
     @echo "All checks passed!"
 
-# Build Docker image for backend
+# Build Docker image for backend (linux/amd64, for deployment to a Linux server).
+# The build context is the repo root because backend/Dockerfile expects to
+# `COPY backend/...` from the parent.
 docker-build-backend:
-    cd backend && docker build -t focus_flow_cloud:latest .
+    docker buildx build --platform linux/amd64 -f backend/Dockerfile -t focusflow-backend:latest --load .
 
 # ============================================================================
 # UTILS

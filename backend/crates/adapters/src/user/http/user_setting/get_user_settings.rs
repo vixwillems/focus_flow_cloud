@@ -1,10 +1,11 @@
 use crate::http_error::{HttpError, HttpResult};
 use crate::openapi::SETTING_TAG;
 use crate::shared::http::app_state::AppState;
+use crate::shared::http::model::session_model::UserSession;
 use crate::user::http::dto::user_setting_dto::UserSettingDto;
 use application::user::use_cases::user_settings::get_settings::GetSettingsError;
 use axum::extract::State;
-use axum::Json;
+use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -26,7 +27,7 @@ pub struct UserSettingsResponseDto {
     get,
     path = "/api/setting",
     tag = SETTING_TAG,
-    summary = "Fetch user settings",
+    summary = "Fetch the current user's settings",
     responses(
         (status = 200, description = "Settings fetched successfully", body = UserSettingsResponseDto),
         (status = 401, description = "Unauthorized"),
@@ -38,8 +39,13 @@ pub struct UserSettingsResponseDto {
 )]
 pub async fn get_settings_api(
     State(state): State<AppState>,
+    Extension(user): Extension<UserSession>,
 ) -> HttpResult<Json<UserSettingsResponseDto>> {
-    let settings = state.user.get_user_settings_uc.execute().await?;
+    let settings = state
+        .user
+        .get_user_settings_uc
+        .execute(user.user_id)
+        .await?;
 
     Ok(Json(UserSettingsResponseDto {
         settings: settings

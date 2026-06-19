@@ -4,6 +4,7 @@ use domain::user::entities::user_setting::UserSetting;
 use std::sync::Arc;
 use thiserror::Error;
 use tracing::instrument;
+use uuid::Uuid;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum GetSettingsError {
@@ -39,11 +40,13 @@ impl GetSettingsUseCase {
         }
     }
 
+    /// Returns only the settings owned by `user_id`. Settings are user-scoped;
+    /// one user must never see another user's values.
     #[instrument(skip(self))]
-    pub async fn execute(&self) -> GetSettingsResult<Vec<UserSettingOutput>> {
+    pub async fn execute(&self, user_id: Uuid) -> GetSettingsResult<Vec<UserSettingOutput>> {
         Ok(self
             .setting_persistence
-            .find_all()
+            .find_by_user(user_id)
             .await?
             .iter()
             .map(|s| s.into())
@@ -60,6 +63,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_settings_success() {
         let mut mock_persistence = MockUserSettingPersistence::new();
+        let user_id = Uuid::new_v4();
         let expected_settings = vec![UserSetting::new(
             "theme".to_string(),
             Some("dark".to_string()),
@@ -67,11 +71,11 @@ mod tests {
         let returned_settings = expected_settings.clone();
 
         mock_persistence
-            .expect_find_all()
-            .returning(move || Ok(returned_settings.clone()));
+            .expect_find_by_user()
+            .returning(move |_| Ok(returned_settings.clone()));
 
         let use_case = GetSettingsUseCase::new(Arc::new(mock_persistence));
-        let result = use_case.execute().await;
+        let result = use_case.execute(user_id).await;
 
         assert!(result.is_ok());
         let result = result.unwrap().get(0).unwrap().clone();
@@ -83,11 +87,11 @@ mod tests {
     async fn test_get_settings_persistence_error() {
         let mut mock_persistence = MockUserSettingPersistence::new();
         mock_persistence
-            .expect_find_all()
-            .returning(|| Err(PersistenceError::Unexpected("Database error".to_string())));
+            .expect_find_by_user()
+            .returning(|_| Err(PersistenceError::Unexpected("Database error".to_string())));
 
         let use_case = GetSettingsUseCase::new(Arc::new(mock_persistence));
-        let result = use_case.execute().await;
+        let result = use_case.execute(Uuid::new_v4()).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {

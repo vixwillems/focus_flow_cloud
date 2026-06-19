@@ -31,9 +31,11 @@ impl UpdateSettingUseCase {
         key: String,
         value: String,
     ) -> UpdateSettingsResult<()> {
-        let settings = self.setting_persistence.find_all().await?;
-
-        if settings.iter().any(|s| s.key() == key) {
+        if self
+            .setting_persistence
+            .exists_for_user(user_id, &key)
+            .await?
+        {
             self.setting_persistence
                 .update_setting(user_id, key, value)
                 .await?;
@@ -51,7 +53,6 @@ impl UpdateSettingUseCase {
 mod tests {
     use super::*;
     use crate::user::traits::user_setting_persistence::MockUserSettingPersistence;
-    use domain::user::entities::user_setting::UserSetting;
 
     #[tokio::test]
     async fn test_update_setting_existing() {
@@ -60,11 +61,9 @@ mod tests {
         let key = "theme".to_string();
         let value = "light".to_string();
 
-        let existing_settings = vec![UserSetting::new(key.clone(), Some("dark".to_string()))];
-
         mock_persistence
-            .expect_find_all()
-            .returning(move || Ok(existing_settings.clone()));
+            .expect_exists_for_user()
+            .returning(|_, _| Ok(true));
 
         mock_persistence
             .expect_update_setting()
@@ -88,7 +87,9 @@ mod tests {
         let key = "language".to_string();
         let value = "en".to_string();
 
-        mock_persistence.expect_find_all().returning(|| Ok(vec![]));
+        mock_persistence
+            .expect_exists_for_user()
+            .returning(|_, _| Ok(false));
 
         mock_persistence
             .expect_create_setting()
@@ -109,8 +110,8 @@ mod tests {
     async fn test_update_setting_persistence_error() {
         let mut mock_persistence = MockUserSettingPersistence::new();
         mock_persistence
-            .expect_find_all()
-            .returning(|| Err(PersistenceError::Unexpected("DB Error".to_string())));
+            .expect_exists_for_user()
+            .returning(|_, _| Err(PersistenceError::Unexpected("DB Error".to_string())));
 
         let use_case = UpdateSettingUseCase::new(Arc::new(mock_persistence));
         let result = use_case

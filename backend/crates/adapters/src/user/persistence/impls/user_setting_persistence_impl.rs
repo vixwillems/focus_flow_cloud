@@ -15,7 +15,7 @@ use domain::user::entities::user_setting::UserSetting;
 #[async_trait]
 impl UserSettingPersistence for PostgresPersistence {
     #[instrument(skip(self))]
-    async fn find_all(&self) -> PersistenceResult<Vec<UserSetting>> {
+    async fn find_by_user(&self, user_id: uuid::Uuid) -> PersistenceResult<Vec<UserSetting>> {
         let conn = self
             .pool
             .get()
@@ -25,6 +25,7 @@ impl UserSettingPersistence for PostgresPersistence {
         let result = conn
             .interact(move |conn| {
                 schema::user_settings::table
+                    .filter(schema::user_settings::user_id.eq(user_id))
                     .select(DbUserSetting::as_select())
                     .order(schema::user_settings::created_at.desc())
                     .load(conn)
@@ -33,8 +34,40 @@ impl UserSettingPersistence for PostgresPersistence {
             .map_err(|e| PersistenceError::Unexpected(e.to_string()))?
             .map_err(|e| PersistenceError::Unexpected(e.to_string()))?;
 
-        let tasks: Vec<UserSetting> = result.into_iter().map(|c| c.into()).collect();
-        Ok(tasks)
+        let settings: Vec<UserSetting> = result.into_iter().map(|c| c.into()).collect();
+        Ok(settings)
+    }
+
+    #[instrument(skip(self))]
+    async fn exists_for_user(
+        &self,
+        user_id: uuid::Uuid,
+        key: &str,
+    ) -> PersistenceResult<bool> {
+        let conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| PersistenceError::Unexpected(e.to_string()))?;
+
+        // `key` is `&str` with a non-static lifetime; move an owned `String`
+        // into the closure so it satisfies the `'static` bound required by
+        // deadpool's `interact`.
+        let key_owned = key.to_string();
+        let result = conn
+            .interact(move |conn| {
+                schema::user_settings::table
+                    .filter(schema::user_settings::user_id.eq(user_id))
+                    .filter(schema::user_settings::key.eq(key_owned))
+                    .select(DbUserSetting::as_select())
+                    .first(conn)
+                    .optional()
+            })
+            .await
+            .map_err(|e| PersistenceError::Unexpected(e.to_string()))?
+            .map_err(|e| PersistenceError::Unexpected(e.to_string()))?;
+
+        Ok(result.is_some())
     }
 
     #[instrument(skip(self))]

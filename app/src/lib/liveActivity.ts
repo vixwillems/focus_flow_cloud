@@ -23,19 +23,47 @@ export function isTauriIOS(): boolean {
     return /iPhone|iPad|iPod/i.test(navigator.userAgent || '')
 }
 
-let cachedAvailable: boolean | null = null
+// Per-page cache. We intentionally do NOT cache `false` across page mounts —
+// the first call (right after the user installs or relaunches the app) can
+// run before the Rust dylib / Swift runtime have fully initialized, and we
+// don't want that transient miss to lock the toggle off for the whole
+// session. `cachedTrue` is module-scoped (lives for the page lifetime);
+// `cachedFalseFor` is also module-scoped and short, so the same page gets
+// one retry on transient failures.
+let cachedTrue = false
+let cachedFalseUntil = 0
+const FALSE_CACHE_MS = 30_000
+
 export async function liveActivityAvailable(): Promise<boolean> {
-    if (cachedAvailable !== null) return cachedAvailable
+    if (cachedTrue) return true
+    const now = Date.now()
+    if (now < cachedFalseUntil) return false
     if (!isTauriIOS()) {
-        cachedAvailable = false
+        cachedFalseUntil = now + FALSE_CACHE_MS
         return false
     }
     try {
-        cachedAvailable = await invoke<boolean>('live_activity_is_available')
+        const ok = await invoke<boolean>('live_activity_is_available')
+        if (ok) {
+            cachedTrue = true
+            return true
+        }
+        cachedFalseUntil = now + FALSE_CACHE_MS
+        return false
     } catch {
-        cachedAvailable = false
+        cachedFalseUntil = now + FALSE_CACHE_MS
+        return false
     }
-    return cachedAvailable
+}
+
+// Used by the timer page right before it starts a Live Activity: if we
+// already know the symbol is missing, surface the error to the JS side
+// rather than silently calling into a no-op. (The symbol table on a
+// freshly installed / re-built app may not yet be ready when the user
+// first opens Settings.)
+export function resetLiveActivityCache() {
+    cachedTrue = false
+    cachedFalseUntil = 0
 }
 
 export function liveActivityUserEnabled(): boolean {

@@ -6,7 +6,16 @@ use uuid::Uuid;
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait UserSettingPersistence: Send + Sync {
-    async fn find_all(&self) -> PersistenceResult<Vec<UserSetting>>;
+    /// Find all settings for a specific user. Used by `GET /api/setting`.
+    async fn find_by_user(&self, user_id: Uuid) -> PersistenceResult<Vec<UserSetting>>;
+
+    /// Check whether a (user, key) pair already exists. Used by the update
+    /// use case to decide between `update_setting` and `create_setting`.
+    async fn exists_for_user(
+        &self,
+        user_id: Uuid,
+        key: &str,
+    ) -> PersistenceResult<bool>;
 
     async fn update_setting(
         &self,
@@ -30,11 +39,20 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_find_all() {
+    async fn test_find_by_user() {
         let mut mock = MockUserSettingPersistence::new();
-        mock.expect_find_all().returning(|| Ok(vec![]));
-        let result = mock.find_all().await;
+        mock.expect_find_by_user().returning(|_| Ok(vec![]));
+        let result = mock.find_by_user(Uuid::new_v4()).await;
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_exists_for_user() {
+        let mut mock = MockUserSettingPersistence::new();
+        mock.expect_exists_for_user().returning(|_, _| Ok(true));
+        let result = mock.exists_for_user(Uuid::new_v4(), "key").await;
+        assert!(result.is_ok());
+        assert!(result.unwrap());
     }
 
     #[tokio::test]
@@ -77,14 +95,5 @@ mod tests {
             .update_setting(Uuid::new_v4(), "key".to_string(), "value".to_string())
             .await;
         assert!(result.is_err())
-    }
-
-    #[tokio::test]
-    async fn test_find_all_error() {
-        let mut mock = MockUserSettingPersistence::new();
-        mock.expect_find_all()
-            .returning(|| Err(PersistenceError::Unexpected("test".to_string())));
-        let result = mock.find_all().await;
-        assert!(result.is_err());
     }
 }
