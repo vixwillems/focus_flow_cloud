@@ -18,6 +18,7 @@
         "/categories": "Categories",
         "/cards": "Flashcards",
         "/settings": "Settings",
+        "/admin": "Admin",
     };
 
     let pathname = $derived($page.url.pathname);

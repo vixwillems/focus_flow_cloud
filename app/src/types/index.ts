@@ -80,4 +80,6 @@ export interface WsCurrentSession {
 export interface PomodoroWsState {
   currentSession: WsCurrentSession | null
   taskId: string | null
+  completedWorkSessions: number
+  longBreakInterval: number
 }

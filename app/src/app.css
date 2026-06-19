@@ -23,6 +23,44 @@
 @import "@skeletonlabs/skeleton/themes/vintage";
 @import "@skeletonlabs/skeleton/themes/vox";
 @import "@skeletonlabs/skeleton/themes/wintry";
+/* ── Brighten the default theme ───────────────────────────────────── */
+/*    surface-950/900: lifted for better readability & button visibility */
+[data-theme="nosh"] {
+    --color-surface-950: oklch(24% 0 none);
+    --color-surface-900: oklch(38% 0 none);
+    --color-surface-800: oklch(48% 0 none);
+    --color-surface-700: oklch(64% 0 none);
+    --color-surface-600: oklch(65% 0 none);
+    --color-surface-500: oklch(75% 0 none);
+    --color-surface-400: oklch(82% 0 none);
+    --color-surface-300: oklch(88% 0 none);
+    --color-surface-200: oklch(93% 0 none);
+    --color-surface-100: oklch(96% 0 none);
+    --color-surface-50: oklch(98% 0 none);
+    --color-primary-500: oklch(62% 0.24 24.62deg);
+    --color-primary-600: oklch(52% 0.24 24.62deg);
+}
+
+[data-theme="nosh"] {
+    --color-on-surface: oklch(93% 0 none);
+    --color-surface: oklch(24% 0 none);
+    --color-surface-content: oklch(93% 0 none);
+}
+
+[data-theme="nosh"] .preset-outlined {
+    --button-border-color: oklch(70% 0 none);
+    --button-color: oklch(82% 0 none);
+}
+
+[data-theme="nosh"] .preset-outlined:hover {
+    --button-border-color: oklch(82% 0 none);
+    --button-color: oklch(93% 0 none);
+}
+
+:root {
+    color-scheme: dark;
+}
+
 @layer base {
     html,
     body {

@@ -8,3 +8,5 @@ export { users } from "./users";
 export { pushApi } from "./push";
 export { remindersApi } from "./reminders";
 export { flashcardsApi } from "./flashcards";
+export { sessionsApi } from "./sessions";
+export { settings } from "./settings";

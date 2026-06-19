@@ -17,4 +17,6 @@ pub trait UserPersistence: Send + Sync {
     async fn delete_user(&self, user_id: Uuid) -> PersistenceResult<()>;
 
     async fn is_user_admin(&self, user_id: Uuid) -> PersistenceResult<bool>;
+
+    async fn find_all_users(&self) -> PersistenceResult<Vec<User>>;
 }

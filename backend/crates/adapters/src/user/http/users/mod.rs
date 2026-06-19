@@ -1,5 +1,10 @@
+pub mod admin_change_password;
+pub mod admin_get_user_stats;
 pub mod create_user;
+pub mod delete_user;
 pub mod get_info;
+pub mod list_users;
 pub mod routes;
 pub mod update_password;
+pub mod update_user_by_admin;
 pub mod update_username;

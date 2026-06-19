@@ -1,6 +1,11 @@
+use application::user::use_cases::user::admin_change_password::AdminChangePasswordUseCase;
+use application::user::use_cases::user::admin_get_user_stats::AdminGetUserStatsUseCase;
+use application::user::use_cases::user::delete_user::DeleteUserUseCase;
 use application::user::use_cases::user::get_user_info::GetUserInfoUseCase;
+use application::user::use_cases::user::list_users::ListUsersUseCase;
 use application::user::use_cases::user::login_user::LoginUseCase;
 use application::user::use_cases::user::refresh_token::RefreshTokenUseCase;
+use application::user::use_cases::user::update_user_by_admin::UpdateUserByAdminUseCase;
 use application::user::use_cases::user::register_user::RegisterUserUseCase;
 use application::user::use_cases::user::update_password::UpdateUserPasswordUseCase;
 use application::user::use_cases::user::update_user_username::UpdateUserUsernameUseCase;
@@ -18,4 +23,9 @@ pub struct UserState {
     pub get_user_info_uc: Arc<GetUserInfoUseCase>,
     pub update_user_setting_uc: Arc<UpdateSettingUseCase>,
     pub get_user_settings_uc: Arc<GetSettingsUseCase>,
+    pub delete_user_uc: Arc<DeleteUserUseCase>,
+    pub list_users_uc: Arc<ListUsersUseCase>,
+    pub admin_change_password_uc: Arc<AdminChangePasswordUseCase>,
+    pub update_user_by_admin_uc: Arc<UpdateUserByAdminUseCase>,
+    pub admin_get_user_stats_uc: Arc<AdminGetUserStatsUseCase>,
 }

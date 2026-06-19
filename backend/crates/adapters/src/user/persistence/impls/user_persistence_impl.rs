@@ -153,6 +153,28 @@ impl UserPersistence for PostgresPersistence {
     }
 
     #[instrument(skip(self))]
+    async fn find_all_users(&self) -> PersistenceResult<Vec<User>> {
+        let conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| PersistenceError::Unexpected(e.to_string()))?;
+
+        let results = conn
+            .interact(move |conn| {
+                schema::users::table
+                    .order(schema::users::created_at.desc())
+                    .select(DbUser::as_select())
+                    .load(conn)
+            })
+            .await
+            .map_err(|e| PersistenceError::Unexpected(e.to_string()))?
+            .map_err(|e| PersistenceError::Unexpected(e.to_string()))?;
+
+        Ok(results.into_iter().map(|r| r.into()).collect())
+    }
+
+    #[instrument(skip(self))]
     async fn is_user_admin(&self, user_id: Uuid) -> PersistenceResult<bool> {
         let conn = self
             .pool

@@ -3,11 +3,17 @@ use crate::services::jwt_service::JwtService;
 use adapters::shared::http::app_state::user_state::UserState;
 use adapters::shared::persistence::PostgresPersistence;
 use adapters::user::auth::password_policy_impl::PasswordPolicyImpl;
+use application::tasks::traits::focus_session_repository::FocusSessionRepository;
+use application::user::use_cases::user::admin_change_password::AdminChangePasswordUseCase;
+use application::user::use_cases::user::admin_get_user_stats::AdminGetUserStatsUseCase;
+use application::user::use_cases::user::delete_user::DeleteUserUseCase;
 use application::user::use_cases::user::get_user_info::GetUserInfoUseCase;
+use application::user::use_cases::user::list_users::ListUsersUseCase;
 use application::user::use_cases::user::login_user::LoginUseCase;
 use application::user::use_cases::user::refresh_token::RefreshTokenUseCase;
 use application::user::use_cases::user::register_user::RegisterUserUseCase;
 use application::user::use_cases::user::update_password::UpdateUserPasswordUseCase;
+use application::user::use_cases::user::update_user_by_admin::UpdateUserByAdminUseCase;
 use application::user::use_cases::user::update_user_username::UpdateUserUsernameUseCase;
 use application::user::use_cases::user_settings::get_settings::GetSettingsUseCase;
 use application::user::use_cases::user_settings::update_setting::UpdateSettingUseCase;
@@ -43,5 +49,13 @@ pub fn build_user_state(
         get_user_info_uc: Arc::new(GetUserInfoUseCase::new(postgres.clone())),
         update_user_setting_uc: Arc::new(UpdateSettingUseCase::new(postgres.clone())),
         get_user_settings_uc: Arc::new(GetSettingsUseCase::new(postgres.clone())),
+        delete_user_uc: Arc::new(DeleteUserUseCase::new(postgres.clone())),
+        list_users_uc: Arc::new(ListUsersUseCase::new(postgres.clone())),
+        admin_change_password_uc: Arc::new(AdminChangePasswordUseCase::new(postgres.clone())),
+        update_user_by_admin_uc: Arc::new(UpdateUserByAdminUseCase::new(postgres.clone())),
+        admin_get_user_stats_uc: Arc::new(AdminGetUserStatsUseCase::new(
+            postgres.clone(),
+            postgres.clone() as Arc<dyn FocusSessionRepository>,
+        )),
     }
 }

@@ -34,6 +34,7 @@ pub struct NewDbUser {
 pub struct UpdateDbUser {
     pub username: String,
     pub hashed_password: String,
+    pub role: String,
 }
 
 impl From<DbUser> for User {
@@ -52,6 +53,7 @@ impl From<User> for UpdateDbUser {
         Self {
             username: value.username().to_string(),
             hashed_password: value.hashed_password().to_string(),
+            role: value.role().to_string(),
         }
     }
 }

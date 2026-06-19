@@ -6,11 +6,13 @@
 
     const {open, onClose}: { open: boolean; onClose: () => void } = $props()
 
-    type Section = 'tasks' | 'flashcards' | 'settings'
+    type Section = 'tasks' | 'flashcards' | 'sessions' | 'settings' | 'admin'
 
     function getSection(pathname: string): Section {
         if (pathname.startsWith('/cards')) return 'flashcards'
+        if (pathname.startsWith('/sessions')) return 'sessions'
         if (pathname.startsWith('/settings')) return 'settings'
+        if (pathname.startsWith('/admin')) return 'admin'
         return 'tasks'
     }
 
@@ -30,9 +32,19 @@
             label: 'Flashcards',
         },
         {
+            id: 'sessions' as Section,
+            to: '/sessions',
+            label: 'Sessions',
+        },
+        {
             id: 'settings' as Section,
             to: '/settings',
             label: 'Settings',
+        },
+        {
+            id: 'admin' as Section,
+            to: '/admin',
+            label: 'Admin',
         },
     ]
 
@@ -108,6 +120,19 @@
                              stroke-width="1.5">
                             <rect x="2" y="3" width="10" height="9" rx="1"/>
                             <rect x="4" y="5" width="10" height="9" rx="1"/>
+                        </svg>
+                    {:else if item.id === 'sessions'}
+                        <svg viewBox="0 0 16 16" width="14" height="14" stroke="currentColor" fill="none"
+                             stroke-width="1.5" stroke-linecap="round">
+                            <circle cx="8" cy="8" r="6"/>
+                            <path d="M8 4v4l3 2"/>
+                        </svg>
+                    {:else if item.id === 'admin'}
+                        <svg viewBox="0 0 16 16" width="14" height="14" stroke="currentColor" fill="none"
+                             stroke-width="1.5" stroke-linecap="round">
+                            <rect x="3" y="4" width="10" height="9" rx="1.5"/>
+                            <path d="M5 2h6v2H5z"/>
+                            <path d="M6 7l2 2 3-3"/>
                         </svg>
                     {:else}
                         <svg viewBox="0 0 16 16" width="14" height="14" stroke="currentColor" fill="none"
