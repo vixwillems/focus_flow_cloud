@@ -193,6 +193,45 @@
     }
 
     let canSubmitCard = $derived(cardFront.trim().length > 0 && cardBack.trim().length > 0);
+
+    // ── Import / Export ─────────────────────────────────────────────
+    let importInput = $state<HTMLInputElement | undefined>(undefined);
+    let importStatus = $state<"idle" | "importing" | "done" | "error">("idle");
+    let importCount = $state(0);
+
+    async function handleExport() {
+        try {
+            const data = await flashcardsApi.exportFlashcards();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "flashcards-export.json";
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch { /* ignore */ }
+    }
+
+    async function handleImportFile(e: Event) {
+        const input = e.currentTarget as HTMLInputElement;
+        const file = input.files?.[0];
+        if (!file) return;
+        importStatus = "importing";
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            const cards = Array.isArray(data) ? data : data.cards ?? [];
+            const result = await flashcardsApi.importFlashcards(cards);
+            importCount = result.imported;
+            importStatus = "done";
+            qc.invalidateQueries({ queryKey: ["flashcards", "folder"] });
+            qc.invalidateQueries({ queryKey: ["flashcards", "due"] });
+        } catch {
+            importStatus = "error";
+        }
+        input.value = "";
+        setTimeout(() => { importStatus = "idle"; }, 3000);
+    }
 </script>
 
 <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -308,7 +347,44 @@
                     </svg>
                     New Card
                 </button>
+                <div class="flex-1"></div>
+                <button
+                    onclick={handleExport}
+                    class="btn preset-tonal-surface text-sm flex items-center gap-1.5"
+                    title="Export flashcards as JSON"
+                >
+                    <svg viewBox="0 0 16 16" width="14" height="14" stroke="currentColor" fill="none" stroke-width="1.6">
+                        <path d="M8 2v8M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M2 12v1.5A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5V12" stroke-linecap="round" />
+                    </svg>
+                    Export
+                </button>
+                <button
+                    onclick={() => importInput?.click()}
+                    class="btn preset-tonal-surface text-sm flex items-center gap-1.5"
+                    title="Import flashcards from JSON"
+                >
+                    <svg viewBox="0 0 16 16" width="14" height="14" stroke="currentColor" fill="none" stroke-width="1.6">
+                        <path d="M8 10V2M4 6l4-4 4 4" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M2 12v1.5A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5V12" stroke-linecap="round" />
+                    </svg>
+                    Import
+                </button>
+                <input
+                    type="file"
+                    accept=".json"
+                    class="hidden"
+                    bind:this={importInput}
+                    onchange={handleImportFile}
+                />
             </div>
+            {#if importStatus === "importing"}
+                <div class="px-4 pb-2"><p class="text-xs text-primary-400">Importing…</p></div>
+            {:else if importStatus === "done"}
+                <div class="px-4 pb-2"><p class="text-xs text-green-400">Imported {importCount} cards.</p></div>
+            {:else if importStatus === "error"}
+                <div class="px-4 pb-2"><p class="text-xs text-red-400">Import failed. Check the file format.</p></div>
+            {/if}
         {/if}
 
         {#if isLoading}
@@ -381,7 +457,7 @@
                                                 {isOverdue ? "Due now" : `Due ${due.toLocaleDateString()}`}
                                             </p>
                                         {:else}
-                                            <p class="text-xs text-surface-700 mt-1">Not yet reviewed</p>
+                                            <p class="text-xs text-surface-500 mt-1">Not yet reviewed</p>
                                         {/if}
                                     </div>
                                     <div class="flex gap-1 shrink-0">

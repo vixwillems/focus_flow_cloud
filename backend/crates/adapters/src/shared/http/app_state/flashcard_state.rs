@@ -1,3 +1,4 @@
+use application::flashcards::traits::flashcard_persistence::FlashcardPersistence;
 use application::flashcards::use_cases::create_flashcards::CreateFlashcardUseCase;
 use application::flashcards::use_cases::create_folder::CreateFolderUseCase;
 use application::flashcards::use_cases::delete_flashcard::DeleteFlashcardUseCase;
@@ -28,4 +29,5 @@ pub struct FlashcardState {
     pub get_folder_stats_uc: Arc<GetFolderStatsUseCase>,
     pub get_activity_heatmap_uc: Arc<GetActivityHeatmapUseCase>,
     pub get_folder_review_queue_uc: Arc<GetFolderReviewQueueUseCase>,
+    pub flashcard_persistence: Arc<dyn FlashcardPersistence>,
 }

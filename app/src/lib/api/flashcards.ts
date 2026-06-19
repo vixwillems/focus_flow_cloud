@@ -13,6 +13,18 @@ import type {
     FolderReviewQueueResponseDto,
 } from "@/types";
 
+export interface ExportCardDto {
+    front: string;
+    back: string;
+    folderPath: string | null;
+}
+
+export interface ImportCardDto {
+    front: string;
+    back: string;
+    folderPath?: string;
+}
+
 export const flashcardsApi = {
     getRootFolderContents: () =>
         apiClient
@@ -79,5 +91,15 @@ export const flashcardsApi = {
     getFolderReviewQueue: (folderId: string) =>
         apiClient
             .get<FolderReviewQueueResponseDto>(`/api/flashcard/folder/${folderId}/review/queue`)
+            .then((r) => r.data),
+
+    exportFlashcards: () =>
+        apiClient
+            .get<{ version: number; cards: ExportCardDto[] }>("/api/flashcard/all/export")
+            .then((r) => r.data),
+
+    importFlashcards: (cards: ImportCardDto[]) =>
+        apiClient
+            .post<{ imported: number }>("/api/flashcard/all/import", { version: 1, cards })
             .then((r) => r.data),
 };

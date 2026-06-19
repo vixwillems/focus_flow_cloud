@@ -1,9 +1,11 @@
 use crate::flashcards::http::flashcards::create_flashcard::create_flashcard_api;
 use crate::flashcards::http::flashcards::delete_flashcard::delete_flashcard_api;
+use crate::flashcards::http::flashcards::export_flashcards::export_flashcards_api;
 use crate::flashcards::http::flashcards::get_activity_heatmap::get_activity_heatmap_api;
 use crate::flashcards::http::flashcards::get_due_flashcards::get_due_flashcards_api;
 use crate::flashcards::http::flashcards::get_flashcard::get_flashcard_api;
 use crate::flashcards::http::flashcards::get_flashcard_stats::get_flashcard_stats_api;
+use crate::flashcards::http::flashcards::import_flashcards::import_flashcards_api;
 use crate::flashcards::http::flashcards::review_flashcard::review_flashcard_api;
 use crate::flashcards::http::flashcards::update_flashcard::update_flashcard_api;
 use crate::shared::http::app_state::AppState;
@@ -20,4 +22,6 @@ pub fn routes() -> Router<AppState> {
         .route("/flashcard/{id}", put(update_flashcard_api))
         .route("/flashcard/{id}", delete(delete_flashcard_api))
         .route("/flashcard/{id}/review", post(review_flashcard_api))
+        .route("/flashcard/all/export", get(export_flashcards_api))
+        .route("/flashcard/all/import", post(import_flashcards_api))
 }

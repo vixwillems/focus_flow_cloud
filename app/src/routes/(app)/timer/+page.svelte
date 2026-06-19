@@ -3,7 +3,10 @@
     import { wsStore } from "$lib/ws";
     import { timerStore } from "$lib/stores/timer";
     import { fmtTime } from "$lib/utils";
-    import { useQueryClient } from "@tanstack/svelte-query";
+    import { showNotification } from "$lib/notifications";
+    import { createQuery, useQueryClient } from "@tanstack/svelte-query";
+    import { settings as settingsApi } from "$lib/api";
+    import type { UserSettingDto } from "@/types";
 
     const CIRCUMFERENCE = 552.92;
 
@@ -12,11 +15,24 @@
         ShortBreak: "Short Break",
         LongBreak: "Long Break",
     };
-    const SESSION_TARGETS: Record<string, number> = {
-        Work: 25 * 60,
-        ShortBreak: 5 * 60,
-        LongBreak: 15 * 60,
-    };
+
+    const settingsQuery = createQuery({
+        queryKey: ["settings"],
+        queryFn: settingsApi.getAll,
+    });
+
+    const sessionTargets = $derived.by(() => {
+        const s = $settingsQuery.data ?? [];
+        const get = (key: string, fallback: number) => {
+            const found = s.find((x: UserSettingDto) => x.key === key);
+            return found ? parseInt(found.value, 10) * 60 : fallback * 60;
+        };
+        return {
+            Work: get("pomodoro_work_duration", 50),
+            ShortBreak: get("pomodoro_short_break_duration", 10),
+            LongBreak: get("pomodoro_long_break_duration", 20),
+        };
+    });
 
     const qc = useQueryClient();
     let noteInput = $state("");
@@ -73,20 +89,29 @@
 
     let remaining = $derived.by(() => {
         void tick;
-        if (!session) return 25 * 60;
+        if (!session) return sessionTargets.Work;
         const now = Math.floor(Date.now() / 1000);
-        const elapsed = Math.max(0, now - session.sessionStartTime);
-        const target = SESSION_TARGETS[session.sessionType] ?? 25 * 60;
-        return Math.max(0, target - elapsed);
+        const elapsed = now - session.sessionStartTime;
+        const target = sessionTargets[session.sessionType] ?? sessionTargets.Work;
+        return target - elapsed;
     });
 
-    let progress = $derived.by(() => {
-        if (!session) return 0;
-        const target = SESSION_TARGETS[session.sessionType] ?? 25 * 60;
-        return 1 - remaining / target;
+    let isOvertime = $derived(hasSession && remaining < 0);
+    let displayRemaining = $derived(isOvertime ? Math.abs(remaining) : Math.max(0, remaining));
+    let clampedProgress = $derived(isOvertime ? 1 : Math.max(0, Math.min(1, 1 - remaining / (sessionTargets[session?.sessionType ?? "Work"] ?? sessionTargets.Work))));
+
+    let prevRemaining = $state(0);
+    $effect(() => {
+        if (prevRemaining > 0 && remaining <= 0 && hasSession) {
+            const msg = session!.sessionType === "Work"
+                ? { title: "FocusFlow", body: "Focus session complete!" }
+                : { title: "FocusFlow", body: "Break's over! Time to focus." };
+            showNotification(msg.title, msg.body).catch(() => {});
+        }
+        prevRemaining = remaining;
     });
 
-    let dashOffset = $derived(CIRCUMFERENCE * (1 - progress));
+    let dashOffset = $derived(CIRCUMFERENCE * (1 - clampedProgress));
 </script>
 
 <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -123,6 +148,17 @@
         <p class="text-xs font-mono text-surface-500 uppercase tracking-widest">
             {sessionLabel}
         </p>
+        {#if hasSession}
+            <p class="text-[10px] font-mono text-surface-600">
+                {#if isWork}
+                    Work {$wsStore.state!.completedWorkSessions} of {$wsStore.state!.longBreakInterval}
+                {:else if session!.sessionType === "ShortBreak"}
+                    Short break {$wsStore.state!.completedWorkSessions}
+                {:else}
+                    Long break
+                {/if}
+            </p>
+        {/if}
 
         <div class="relative">
             <svg viewBox="0 0 200 200" width="220" height="220">
@@ -143,7 +179,7 @@
                     stroke="currentColor"
                     stroke-width="6"
                     stroke-linecap="round"
-                    class={isWork ? "text-primary-500" : "text-green-500"}
+                    class={isOvertime ? "text-red-500" : isWork ? "text-primary-500" : "text-green-500"}
                     stroke-dasharray={CIRCUMFERENCE}
                     stroke-dashoffset={dashOffset}
                     transform="rotate(-90 100 100)"
@@ -154,11 +190,11 @@
                 class="absolute inset-0 flex flex-col items-center justify-center"
             >
                 <span
-                    class="text-4xl font-mono font-bold text-surface-50 tabular-nums"
-                    >{fmtTime(remaining)}</span
+                    class="text-4xl font-mono font-bold tabular-nums {isOvertime ? 'text-red-400' : 'text-surface-50'}"
+                    >{fmtTime(displayRemaining)}</span
                 >
-                <span class="text-xs text-surface-500 mt-1"
-                    >{hasSession ? "Remaining" : "Ready"}</span
+                <span class="text-xs mt-1 {isOvertime ? 'text-red-400/70' : 'text-surface-500'}"
+                    >{isOvertime ? "Over" : hasSession ? "Remaining" : "Ready"}</span
                 >
             </div>
         </div>
@@ -206,7 +242,7 @@
                         {#each [1, 2, 3, 4, 5] as i (i)}
                             <button
                                 onclick={() => setScore(i)}
-                                class={`text-2xl transition-colors leading-none ${displayScore >= i ? "text-primary-400" : "text-surface-700 hover:text-surface-500"}`}
+                                class={`text-2xl transition-colors leading-none ${displayScore >= i ? "text-primary-400" : "text-surface-500 hover:text-surface-400"}`}
                                 aria-label={`Score ${i}`}>★</button
                             >
                         {/each}

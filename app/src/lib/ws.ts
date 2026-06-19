@@ -1,7 +1,6 @@
 import { writable, get } from 'svelte/store'
-import type { PomodoroWsState, WsSessionType } from '@/types'
+import type { PomodoroWsState } from '@/types'
 import { getAccessToken } from '$lib/api'
-import { showNotification } from '$lib/notifications'
 import { serverUrlStore } from '$lib/stores/serverUrl'
 
 export type WsCmd =
@@ -21,12 +20,6 @@ interface WsState {
 const RECONNECT_BASE = 1000
 const RECONNECT_MAX = 30000
 
-const SESSION_NOTIFICATIONS: Record<WsSessionType, { title: string; body: string }> = {
-    Work: { title: 'FocusFlow', body: "Break's over! Time to focus." },
-    ShortBreak: { title: 'FocusFlow', body: 'Focus session complete! Take a short break.' },
-    LongBreak: { title: 'FocusFlow', body: 'Focus session complete! Time for a long break.' },
-}
-
 function getWsUrl(): string {
     const base = serverUrlStore.get() || window.location.origin
     return base.replace(/^https?:\/\//, (m: string) =>
@@ -45,21 +38,8 @@ function createWsStore() {
     let retryCount = 0
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let active = false
-    let prevSessionType: WsSessionType | null = null
 
     function handleStateUpdate(next: PomodoroWsState) {
-        const nextType = next.currentSession?.sessionType ?? null
-
-        if (prevSessionType !== nextType) {
-            if (nextType !== null) {
-                const n = SESSION_NOTIFICATIONS[nextType]
-                showNotification(n.title, n.body).catch(() => {})
-            } else if (prevSessionType !== null) {
-                showNotification('FocusFlow', 'Session ended.').catch(() => {})
-            }
-            prevSessionType = nextType
-        }
-
         update((s) => ({ ...s, state: next }))
     }
 
@@ -111,7 +91,6 @@ function createWsStore() {
         },
         stop() {
             active = false
-            prevSessionType = null
             clearTimeout(retryTimer)
             ws?.close()
             ws = null

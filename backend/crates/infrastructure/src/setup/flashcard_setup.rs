@@ -33,5 +33,6 @@ pub fn build_flashcard_state(postgres: Arc<PostgresPersistence>) -> FlashcardSta
         get_folder_stats_uc: Arc::new(GetFolderStatsUseCase::new(postgres.clone())),
         get_activity_heatmap_uc: Arc::new(GetActivityHeatmapUseCase::new(postgres.clone())),
         get_folder_review_queue_uc: Arc::new(GetFolderReviewQueueUseCase::new(postgres.clone())),
+        flashcard_persistence: postgres.clone(),
     }
 }

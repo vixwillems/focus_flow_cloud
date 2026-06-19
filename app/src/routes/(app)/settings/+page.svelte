@@ -1,13 +1,48 @@
 <script lang="ts">
     import { createQuery, createMutation } from "@tanstack/svelte-query";
     import { goto } from "$app/navigation";
-    import { users as usersApi, auth as authApi, ApiError } from "$lib/api";
+    import { users as usersApi, auth as authApi, settings as settingsApi, ApiError } from "$lib/api";
     import { authStore } from "$lib/stores/auth";
     import { themeStore, THEMES, type Theme } from "$lib/stores/theme";
     import { serverUrlStore } from "$lib/stores/serverUrl";
+    import type { UserSettingDto } from "@/types";
     import SettingsSection from "@/components/settings/SettingsSection.svelte";
 
     const meQuery = createQuery({ queryKey: ["me"], queryFn: usersApi.me });
+
+    const settingsQuery = createQuery({
+        queryKey: ["settings"],
+        queryFn: settingsApi.getAll,
+    });
+
+    let pomodoroWork = $state(50);
+    let pomodoroShortBreak = $state(10);
+    let pomodoroLongBreak = $state(20);
+    let pomodoroOk = $state(false);
+
+    $effect(() => {
+        const s = $settingsQuery.data;
+        if (!s) return;
+        const get = (key: string, fallback: number) => {
+            const found = s.find((x: UserSettingDto) => x.key === key);
+            return found ? parseInt(found.value, 10) : fallback;
+        };
+        pomodoroWork = get("pomodoro_work_duration", 50);
+        pomodoroShortBreak = get("pomodoro_short_break_duration", 10);
+        pomodoroLongBreak = get("pomodoro_long_break_duration", 20);
+    });
+
+    const updatePomodoroDurations = createMutation({
+        mutationFn: async () => {
+            await settingsApi.update("pomodoro_work_duration", String(pomodoroWork));
+            await settingsApi.update("pomodoro_short_break_duration", String(pomodoroShortBreak));
+            await settingsApi.update("pomodoro_long_break_duration", String(pomodoroLongBreak));
+        },
+        onSuccess: () => {
+            pomodoroOk = true;
+            setTimeout(() => (pomodoroOk = false), 2000);
+        },
+    });
 
     let serverUrl = $state(serverUrlStore.get())
     let serverUrlOk = $state(false)
@@ -113,6 +148,44 @@
                     {/each}
                 </select>
             </label>
+        </SettingsSection>
+
+        <SettingsSection title="Pomodoro Timer">
+            <p class="text-xs text-surface-400 mb-3">
+                Default durations in minutes.
+            </p>
+            <label class="label mb-3">
+                <span
+                    class="label-text text-xs font-mono tracking-widest uppercase text-surface-400"
+                    >Work</span
+                >
+                <input class="input" type="number" min="1" bind:value={pomodoroWork} />
+            </label>
+            <label class="label mb-3">
+                <span
+                    class="label-text text-xs font-mono tracking-widest uppercase text-surface-400"
+                    >Short Break</span
+                >
+                <input class="input" type="number" min="1" bind:value={pomodoroShortBreak} />
+            </label>
+            <label class="label mb-3">
+                <span
+                    class="label-text text-xs font-mono tracking-widest uppercase text-surface-400"
+                    >Long Break</span
+                >
+                <input class="input" type="number" min="1" bind:value={pomodoroLongBreak} />
+            </label>
+            {#if pomodoroOk}
+                <aside class="alert preset-tonal-success mb-2">
+                    <p class="alert-message text-xs">Durations saved!</p>
+                </aside>
+            {/if}
+            <button
+                onclick={() => $updatePomodoroDurations.mutate()}
+                class="btn preset-filled-primary-500 text-sm"
+            >
+                Save
+            </button>
         </SettingsSection>
 
         <SettingsSection title="Account">
