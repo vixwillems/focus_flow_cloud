@@ -3,6 +3,7 @@ use application::tasks::use_cases::category::delete_categories_usecase::DeleteCa
 use application::tasks::use_cases::category::get_all_category_usecase::GetAllCategoryUseCases;
 use application::tasks::use_cases::category::update_category_usecase::UpdateCategoryUseCases;
 use application::tasks::use_cases::focus_session::create_manual_session::CreateManualSessionUseCase;
+use application::tasks::use_cases::focus_session::delete_focus_session::DeleteFocusSessionUseCase;
 use application::tasks::use_cases::focus_session::find_sessions_by_filters::FindSessionsByFiltersUseCase;
 use application::tasks::use_cases::focus_session::update_focus_session::UpdateFocusSessionUseCase;
 use application::tasks::use_cases::pomodoro_state::fetch_user_pomodoro_state::FetchUserPomodoroStateUseCase;
@@ -51,6 +52,7 @@ pub struct TasksState {
 
     // Focus Session
     pub create_manual_session_uc: Arc<CreateManualSessionUseCase>,
+    pub delete_focus_session_uc: Arc<DeleteFocusSessionUseCase>,
     pub update_focus_session_uc: Arc<UpdateFocusSessionUseCase>,
     pub find_sessions_by_filters_uc: Arc<FindSessionsByFiltersUseCase>,
 }

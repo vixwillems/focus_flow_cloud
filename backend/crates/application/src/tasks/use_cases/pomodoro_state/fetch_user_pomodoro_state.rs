@@ -19,6 +19,8 @@ pub type FetchUserPomodoroStateResult<T> = Result<T, FetchUserPomodoroStateError
 pub struct FetchUserPomodoroStateOutput {
     pub task_id: Option<String>,
     pub user_current_session: Option<UserCurrentSession>,
+    pub completed_work_sessions: usize,
+    pub long_break_interval: usize,
 }
 
 pub struct UserCurrentSession {
@@ -38,9 +40,20 @@ pub enum UserSessionType {
 
 impl From<PomodoroState> for FetchUserPomodoroStateOutput {
     fn from(mut value: PomodoroState) -> Self {
+        let completed_work_count = value
+            .consecutive_sessions()
+            .iter()
+            .filter(|s| s.session_type() == FocusSessionType::Work)
+            .count();
+        let current_is_work = value
+            .current_session()
+            .as_ref()
+            .is_some_and(|s| s.session_type() == FocusSessionType::Work);
         Self {
             task_id: value.task_id().map(|id| id.to_string()),
             user_current_session: value.current_session().as_ref().map(|s| s.into()),
+            completed_work_sessions: completed_work_count + if current_is_work { 1 } else { 0 },
+            long_break_interval: 4,
         }
     }
 }

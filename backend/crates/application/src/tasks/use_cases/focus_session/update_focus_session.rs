@@ -2,6 +2,7 @@ use crate::shared::traits::persistence_error::PersistenceError;
 use crate::tasks::traits::focus_session_repository::FocusSessionRepository;
 use chrono::{DateTime, Utc};
 use domain::tasks::entities::focus_session::FocusSessionError;
+use domain::tasks::entities::focus_session_type::FocusSessionType;
 use std::sync::Arc;
 use thiserror::Error;
 use tracing::instrument;
@@ -22,6 +23,8 @@ pub type UpdateFocusSessionResult<T> = Result<T, UpdateFocusSessionError>;
 pub struct UpdateFocusSessionCommand {
     pub session_id: Uuid,
     pub task_id: Option<Uuid>,
+    pub session_type: Option<FocusSessionType>,
+    pub actual_duration: Option<i64>,
     pub concentration_score: Option<i32>,
     pub notes: Option<String>,
     pub started_at: Option<DateTime<Utc>>,
@@ -51,6 +54,14 @@ impl UpdateFocusSessionUseCase {
 
         if let Some(task_id) = update_session.task_id {
             session.update_task_id(task_id);
+        }
+
+        if let Some(session_type) = update_session.session_type {
+            session.update_session_type(session_type);
+        }
+
+        if let Some(actual_duration) = update_session.actual_duration {
+            session.update_actual_duration(actual_duration);
         }
 
         if let Some(concentration_score) = update_session.concentration_score {
@@ -114,6 +125,8 @@ mod tests {
             .execute(UpdateFocusSessionCommand {
                 session_id,
                 task_id: Some(task_id),
+                session_type: Some(FocusSessionType::ShortBreak),
+                actual_duration: Some(3600),
                 concentration_score: Some(concentration_score),
                 notes: Some(notes),
                 started_at: Some(started_at),

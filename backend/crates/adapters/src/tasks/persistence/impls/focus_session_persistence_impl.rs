@@ -167,4 +167,30 @@ impl FocusSessionRepository for PostgresPersistence {
 
         Ok(())
     }
+
+    #[instrument(skip(self))]
+    async fn delete_session(
+        &self,
+        session_id: Uuid,
+    ) -> PersistenceResult<()> {
+        let conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| PersistenceError::Unexpected(e.to_string()))?;
+
+        conn.interact(move |conn| {
+            use schema::focus_session::dsl::*;
+            diesel::delete(focus_session.filter(id.eq(session_id)))
+                .execute(conn)
+        })
+        .await
+        .map_err(|e| {
+            error!("Error deleting focus session: {}", e);
+            PersistenceError::Unexpected(e.to_string())
+        })?
+        .map_err(|e| PersistenceError::Unexpected(e.to_string()))?;
+
+        Ok(())
+    }
 }

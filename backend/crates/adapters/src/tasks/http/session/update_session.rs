@@ -2,6 +2,7 @@ use crate::http_error::{HttpError, HttpResult};
 use crate::openapi::SESSION_TAG;
 use crate::shared::http::app_state::AppState;
 use crate::shared::http::validators::validate_uuid::validate_uuid;
+use crate::tasks::http::dto::session_type_enum::{enum_to_domain, SessionTypeEnum};
 use application::tasks::use_cases::focus_session::update_focus_session::{
     UpdateFocusSessionCommand, UpdateFocusSessionError,
 };
@@ -34,6 +35,10 @@ pub struct UpdateFocusSessionPathDto {
 pub struct UpdateFocusSessionDto {
     #[validate(custom(function = "validate_uuid"))]
     pub task_id: Option<String>,
+
+    pub session_type: Option<SessionTypeEnum>,
+
+    pub actual_duration: Option<i64>,
 
     #[validate(range(min = 0, max = 5))]
     pub concentration_score: Option<i32>,
@@ -89,6 +94,11 @@ pub async fn update_session_api(
         .map(|id| Uuid::parse_str(id))
         .transpose()
         .map_err(|_| HttpError::BadRequest("Invalid task id".to_string()))?;
+
+    let session_type = payload
+        .session_type
+        .map(|t| enum_to_domain(t));
+
     let started_at = payload
         .started_at
         .map(|s| {
@@ -107,6 +117,8 @@ pub async fn update_session_api(
     let command = UpdateFocusSessionCommand {
         session_id,
         task_id,
+        session_type,
+        actual_duration: payload.actual_duration,
         concentration_score: payload.concentration_score,
         notes: payload.notes,
         started_at,

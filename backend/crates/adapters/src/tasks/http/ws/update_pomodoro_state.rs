@@ -10,13 +10,22 @@ use crate::tasks::http::dto::session_type_enum::{app_type_to_enum, SessionTypeEn
 pub struct UpdatePomodoroState {
     current_session: Option<UpdateCurrentSession>,
     task_id: Option<String>,
+    completed_work_sessions: usize,
+    long_break_interval: usize,
 }
 
 impl UpdatePomodoroState {
-    pub fn new(task_id: Option<String>, current_session: Option<UpdateCurrentSession>) -> Self {
+    pub fn new(
+        task_id: Option<String>,
+        current_session: Option<UpdateCurrentSession>,
+        completed_work_sessions: usize,
+        long_break_interval: usize,
+    ) -> Self {
         UpdatePomodoroState {
             current_session,
             task_id,
+            completed_work_sessions,
+            long_break_interval,
         }
     }
 }
@@ -54,6 +63,8 @@ impl From<FetchUserPomodoroStateOutput> for UpdatePomodoroState {
         Self {
             current_session: value.user_current_session.map(|s| s.into()),
             task_id: value.task_id,
+            completed_work_sessions: value.completed_work_sessions,
+            long_break_interval: value.long_break_interval,
         }
     }
 }

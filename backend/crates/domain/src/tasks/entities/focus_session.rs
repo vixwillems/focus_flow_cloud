@@ -219,6 +219,14 @@ impl FocusSession<TerminatedSession> {
         self.concentration_score
     }
 
+    pub fn update_session_type(&mut self, session_type: FocusSessionType) {
+        self.session_type = session_type;
+    }
+
+    pub fn update_actual_duration(&mut self, duration: i64) {
+        self.actual_duration = Some(duration);
+    }
+
     pub fn update_concentration_score(
         &mut self,
         concentration_score: i32,

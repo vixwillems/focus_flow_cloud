@@ -40,6 +40,7 @@ pub struct NewDbFocusSession {
 #[diesel(table_name = schema::focus_session)]
 pub struct UpdateDbFocusSession {
     pub task_id: Option<Uuid>,
+    pub session_type: Option<String>,
     pub actual_duration: Option<i64>,
     pub concentration_score: Option<i32>,
     pub notes: Option<String>,
@@ -83,6 +84,7 @@ impl From<FocusSession<TerminatedSession>> for UpdateDbFocusSession {
     fn from(value: FocusSession<TerminatedSession>) -> Self {
         Self {
             task_id: value.task_id(),
+            session_type: Some(value.session_type().to_string()),
             actual_duration: Some(value.actual_duration()),
             concentration_score: value.concentration_score(),
             notes: value.note(),

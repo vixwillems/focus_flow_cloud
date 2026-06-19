@@ -41,4 +41,9 @@ pub trait FocusSessionRepository: Send + Sync {
         &self,
         session_id: Uuid,
     ) -> PersistenceResult<FocusSession<TerminatedSession>>;
+
+    async fn delete_session(
+        &self,
+        session_id: Uuid,
+    ) -> PersistenceResult<()>;
 }
