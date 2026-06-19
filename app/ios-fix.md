@@ -209,3 +209,100 @@ If Xcode 26 stops working (e.g. a new macOS drops Xcode 26 support), you'll need
 - SwiftPM cross-compilation: https://forums.swift.org/t/swiftpm-cross-compilation-issues
 - Project bundle ID: `com.francescopio.focusflow`
 - Personal team: `88QN5KYG2G` (Vix Willems)
+
+## Live Activities, Dynamic Island, Widgets
+
+The iOS app ships a Widget Extension (`FocusFlowWidgets.appex`) that is embedded in the main app. The extension implements:
+
+- **Live Activity** — A timer chip on the Lock Screen and in the Dynamic Island. Driven by Apple's `ActivityKit` framework (iOS 16.1+).
+- **StandBy / Home Screen widget** — A calm, monochromatic widget that shows the current timer on the Lock Screen (accessory families) and Home Screen (system small / medium / large). Looks at home in iOS 17+ StandBy mode.
+
+### Architecture
+
+```
++----------------------+         +-------------------------+
+|     Svelte Timer     |         |  Shared/                |
+|  (liveActivity.ts)   |  invoke |   - SharedTimerState    |
+|                      +-------> |   - FocusPhase          |
++----------------------+         +-------------------------+
+              |                    ^
+              v                    | (also linked into the
++----------------------+         |  widget extension target
+| Tauri commands       |         |  so the ActivityAttributes
+| (live_activity.rs)   |  dlsym  |  shape is identical)
+|                      +-----+   +-------------------------+
++----------------------+     |
+              ^              v
+              |   +----------------------+
+              |   | FFLiveActivityBridge |
+              |   | (.mm, extern "C")    |
+              |   +----------+-----------+
+              |              |
+              |              v
+              |   +----------------------+
+              |   | LiveActivityController  |   App Group: group.com.francescopio.focusflow
+              |   | (Swift, ActivityKit)    | <-------------------------------------------+
+              |   +----------+-------------+                                             |
+              |              |                                                           |
+              |              v                                                           |
+              |   +----------------------+   +--------------------------------+          |
+              |   |   iOS app binary     |   |  FocusFlowWidgets.appex       |          |
+              |   |  (main app target)   |   |  (widget extension target)     |          |
+              |   |                      |   |                                |          |
+              |   |  NSSupportsLive-     |   |  - FocusFlowLiveActivity       |          |
+              |   |   Activities = true  |   |  - FocusFlowStandByWidget      |          |
+              |   |  App Group ✓         |   |  App Group ✓                   |          |
+              |   +----------------------+   +--------------------------------+          |
+              |                                                                       |
+              +-----------------------------------------------------------------------+
+                                          shared state in App Group
+```
+
+### Why `dlsym` (not `extern "C"`)
+
+The Rust crate is built *before* the iOS app target. At that point the Swift/Obj-C++ symbols don't exist yet, so a plain `extern "C"` declaration fails at link time with "Undefined symbols". We solve this with `dlsym(RTLD_DEFAULT, "ff_live_activity_*")` at runtime — by the time the Tauri command fires, the iOS app is fully loaded and the symbols resolve to the Swift-side `FFLiveActivityBridge.mm` definitions.
+
+### Where the code lives
+
+- `app/src-tauri/gen/apple/Sources/focus-flow/`
+  - `FFLiveActivityBridge.h`, `FFLiveActivityBridge.mm` — C ABI surface; uses `objc_msgSend` to call into the Swift `LiveActivityController`.
+  - `LiveActivityController.swift` — `@objc(FFLiveActivity)` class; wraps `Activity<FocusFlowAttributes>` and writes the current state into the App Group `UserDefaults` for the widget to read.
+- `app/src-tauri/FocusFlowWidgetExtension/`
+  - `FocusFlowWidgetBundle.swift` — `@main` widget bundle.
+  - `FocusFlowLiveActivity.swift` — `ActivityConfiguration<FocusFlowAttributes>` (Lock Screen + Dynamic Island).
+  - `FocusFlowStandByWidget.swift` — `StaticConfiguration` widget supporting `.accessoryRectangular` / `.accessoryCircular` / `.accessoryInline` (for StandBy) plus `.systemSmall` / `.systemMedium` / `.systemLarge` (for Home Screen).
+  - `Info.plist` (with `NSExtension.NSExtensionPointIdentifier = com.apple.widgetkit-extension`).
+  - `FocusFlowWidgetExtension.entitlements` (App Group).
+- `app/src-tauri/Shared/` (linked into BOTH the main app and the widget extension)
+  - `SharedTimerState.swift` — the cross-target state model + App Group read/write helpers.
+  - `FocusFlowAttributes.swift` — `ActivityAttributes` definition. Must be byte-compatible between the two targets.
+- `app/src-tauri/src/live_activity.rs` — Rust Tauri commands; uses `dlsym` to call into Swift.
+- `app/src/lib/liveActivity.ts` — Svelte-side wrapper (auto-detects iOS, throttles updates to once per minute, persists the user's enable/disable choice in `localStorage`).
+- `app/src/routes/(app)/timer/+page.svelte` — calls the Live Activity on session start/update/stop.
+- `app/src/routes/(app)/settings/+page.svelte` — adds an iOS-only toggle "Show focus timer in Live Activity" (client-side only; no backend persistence needed for a single-user-per-device app).
+
+### How to add a new widget family
+
+1. Add the family to `.supportedFamilies([...])` in `FocusFlowStandByWidget.swift`.
+2. Add a matching `case .newFamily:` to the `switch family` in `FocusFlowStandByEntryView`.
+3. Implement a new `struct NewFamilyView: View { ... }`.
+4. `xcodegen generate && bun run tauri ios build --debug --target aarch64`.
+
+### Live Activity update budget
+
+The Svelte side throttles Live Activity updates to one per minute (well within Apple's budget). The bridge and the controller also write to the App Group on every update, so the StandBy widget can read the latest state without needing a separate IPC.
+
+### If the widget extension doesn't show up in the iPhone's widget gallery
+
+1. Re-install the app — widgets are discovered from the bundle.
+2. Settings → FocusFlow → confirm the Live Activity toggle is on (iOS 16+ also has a per-app Live Activity master switch in the Settings app).
+3. The StandBy / Home Screen widget is registered as a `StaticConfiguration`, not `AppIntentConfiguration`, so it doesn't require user setup.
+4. If using a free Apple ID, signing certs expire every 7 days — re-build and re-install.
+
+### `project.yml` is the source of truth for the iOS Xcode project
+
+The `focus-flow.xcodeproj` is auto-generated by `xcodegen` from `gen/apple/project.yml`. If you add new sources, change deployment targets, or add new targets (e.g. another extension), edit `project.yml` and re-emit with:
+
+```sh
+./app/src-tauri/scripts/regen_xcode.sh
+```

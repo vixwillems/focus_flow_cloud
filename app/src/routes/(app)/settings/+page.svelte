@@ -7,6 +7,12 @@
     import { serverUrlStore } from "$lib/stores/serverUrl";
     import type { UserSettingDto } from "@/types";
     import SettingsSection from "@/components/settings/SettingsSection.svelte";
+    import {
+        isTauriIOS,
+        liveActivityAvailable,
+        liveActivityUserEnabled,
+        setLiveActivityUserEnabled,
+    } from "$lib/liveActivity";
 
     const meQuery = createQuery({ queryKey: ["me"], queryFn: usersApi.me });
 
@@ -99,6 +105,22 @@
         authStore.logout();
         goto("/login");
     }
+
+    // Live Activity / Dynamic Island toggle (iOS only, client-side only).
+    let liveActivityEnabled = $state(liveActivityUserEnabled());
+    let liveActivityAvailableState = $state(false);
+    let liveActivityOnIOS = $state(false);
+
+    $effect(() => {
+        liveActivityOnIOS = isTauriIOS();
+        if (!liveActivityOnIOS) return;
+        liveActivityAvailable().then((v) => (liveActivityAvailableState = v));
+    });
+
+    function toggleLiveActivity() {
+        liveActivityEnabled = !liveActivityEnabled;
+        setLiveActivityUserEnabled(liveActivityEnabled);
+    }
 </script>
 
 <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -187,6 +209,32 @@
                 Save
             </button>
         </SettingsSection>
+
+        {#if liveActivityOnIOS}
+            <SettingsSection title="Live Activity (iOS)">
+                <p class="text-xs text-surface-400 mb-3">
+                    Show your focus timer on the Lock Screen, in the Dynamic Island,
+                    and as a Home Screen / StandBy widget.
+                </p>
+                {#if !liveActivityAvailableState}
+                    <p class="text-xs text-warning-400 mb-3">
+                        Live Activities are not available on this device or have been
+                        disabled for FocusFlow in Settings → FocusFlow.
+                    </p>
+                {/if}
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        class="checkbox"
+                        checked={liveActivityEnabled}
+                        onchange={toggleLiveActivity}
+                    />
+                    <span class="text-sm text-surface-100">
+                        Show focus timer in Live Activity
+                    </span>
+                </label>
+            </SettingsSection>
+        {/if}
 
         <SettingsSection title="Account">
             <p class="text-xs text-surface-400 mb-3">

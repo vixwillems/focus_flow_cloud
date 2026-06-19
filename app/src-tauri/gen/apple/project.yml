@@ -1,0 +1,149 @@
+name: focus-flow
+options:
+  bundleIdPrefix: com.francescopio.focusflow
+  deploymentTarget:
+    iOS: 14.0
+fileGroups: [../../src]
+configs:
+  debug: debug
+  release: release
+settingGroups:
+  app:
+    base:
+      PRODUCT_NAME: FocusFlow
+      PRODUCT_BUNDLE_IDENTIFIER: com.francescopio.focusflow
+      DEVELOPMENT_TEAM: 88QN5KYG2G
+  widget:
+    base:
+      PRODUCT_NAME: FocusFlowWidgets
+      PRODUCT_BUNDLE_IDENTIFIER: com.francescopio.focusflow.widget
+      DEVELOPMENT_TEAM: 88QN5KYG2G
+      SWIFT_VERSION: "5.0"
+      IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+      CODE_SIGN_STYLE: Automatic
+      SKIP_INSTALL: "YES"
+      ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: "NO"
+      ENABLE_BITCODE: "NO"
+      ARCHS: [arm64]
+      VALID_ARCHS: arm64
+targetTemplates:
+  app:
+    type: application
+    sources:
+      - path: Sources
+    scheme:
+      environmentVariables:
+        RUST_BACKTRACE: full
+        RUST_LOG: info
+    settings:
+      groups: [app]
+targets:
+  focus-flow_iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/focus-flow
+        includes:
+          - "main.mm"
+          - "FFLiveActivityBridge.mm"
+          - "FFLiveActivityBridge.h"
+          - "LiveActivityController.swift"
+          - "bindings/**"
+      - path: ../../Shared
+        type: group
+      - path: Assets.xcassets
+      - path: Externals
+      - path: focus-flow_iOS
+      - path: assets
+        buildPhase: resources
+        type: folder
+      - path: LaunchScreen.storyboard
+    info:
+      path: focus-flow_iOS/Info.plist
+      properties:
+        LSRequiresIPhoneOS: true
+        UILaunchStoryboardName: LaunchScreen
+        UIRequiredDeviceCapabilities: [arm64, metal]
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        CFBundleShortVersionString: 1.1.0
+        CFBundleVersion: "1.1.0"
+        NSSupportsLiveActivities: true
+        NSSupportsLiveActivitiesFrequentUpdates: true
+    entitlements:
+      path: focus-flow_iOS/focus-flow_iOS.entitlements
+    scheme:
+      environmentVariables:
+        RUST_BACKTRACE: full
+        RUST_LOG: info
+    settings:
+      base:
+        ENABLE_BITCODE: false
+        ARCHS: [arm64]
+        VALID_ARCHS: arm64
+        LIBRARY_SEARCH_PATHS[arch=x86_64]: $(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)
+        LIBRARY_SEARCH_PATHS[arch=arm64]: $(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)
+        ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: true
+        EXCLUDED_ARCHS[sdk=iphoneos*]: x86_64
+      groups: [app]
+    dependencies:
+      - framework: libapp.a
+        embed: false
+      - sdk: CoreGraphics.framework
+      - sdk: Metal.framework
+      - sdk: MetalKit.framework
+      - sdk: QuartzCore.framework
+      - sdk: Security.framework
+      - sdk: UIKit.framework
+      - sdk: WebKit.framework
+      - sdk: ActivityKit.framework
+      - sdk: SwiftUI.framework
+      - target: FocusFlowWidgetExtension
+        embed: true
+        codeSign: true
+    preBuildScripts:
+      - script: bun tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
+        name: Build Rust Code
+        basedOnDependencyAnalysis: false
+        outputFiles:
+          - $(SRCROOT)/Externals/x86_64/${CONFIGURATION}/libapp.a
+          - $(SRCROOT)/Externals/arm64/${CONFIGURATION}/libapp.a
+
+  FocusFlowWidgetExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ../../FocusFlowWidgetExtension
+        excludes:
+          - "Info.plist"
+          - "*.entitlements"
+      - path: ../../Shared
+        type: group
+    info:
+      path: ../../FocusFlowWidgetExtension/Info.plist
+      properties:
+        CFBundleDisplayName: FocusFlow
+        CFBundleShortVersionString: 1.1.0
+        CFBundleVersion: "1.1.0"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: ../../FocusFlowWidgetExtension/FocusFlowWidgetExtension.entitlements
+    settings:
+      base:
+        ENABLE_BITCODE: false
+        ARCHS: [arm64]
+        VALID_ARCHS: arm64
+        EXCLUDED_ARCHS[sdk=iphoneos*]: x86_64
+      groups: [widget]
+    dependencies:
+      - sdk: SwiftUI.framework
+      - sdk: WidgetKit.framework
+      - sdk: ActivityKit.framework

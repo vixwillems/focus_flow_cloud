@@ -25,4 +25,6 @@ dist-ssr
 
 # Tauri
 src-tauri/target/
+# Source-of-truth files inside the iOS staging area are tracked
+# (force-added with `git add -f` since the rest of gen/ is regenerated).
 src-tauri/gen/

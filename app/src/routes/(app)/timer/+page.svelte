@@ -7,6 +7,12 @@
     import { createQuery, useQueryClient } from "@tanstack/svelte-query";
     import { settings as settingsApi } from "$lib/api";
     import type { UserSettingDto } from "@/types";
+    import {
+        startLiveActivity,
+        updateLiveActivity,
+        endLiveActivity,
+        type LivePhase,
+    } from "$lib/liveActivity";
 
     const CIRCUMFERENCE = 552.92;
 
@@ -109,6 +115,79 @@
             showNotification(msg.title, msg.body).catch(() => {});
         }
         prevRemaining = remaining;
+    });
+
+    // Live Activity / Dynamic Island integration.
+    // We start a Live Activity when a session appears, push throttled
+    // updates (~once a minute, which is well within Apple's update budget),
+    // and end the activity when the session terminates.
+    let lastTrackedSessionId = $state<string | null>(null);
+    let lastLiveUpdateAt = $state(0);
+    let lastPhaseForLive = $state<LivePhase | null>(null);
+
+    function sessionTypeToPhase(t: string): LivePhase | null {
+        if (t === "Work") return "work";
+        if (t === "ShortBreak") return "shortBreak";
+        if (t === "LongBreak") return "longBreak";
+        return null;
+    }
+
+    // The WS state doesn't expose a session id, so we synthesize a stable
+    // key from start time + type. This is unique per Pomodoro session.
+    function liveSessionKey(): string | null {
+        if (!session) return null;
+        return `${session.sessionType}:${session.sessionStartTime}`;
+    }
+
+    $effect(() => {
+        const currentId = liveSessionKey();
+        const phase = session ? sessionTypeToPhase(session.sessionType) : null;
+        const taskTitle = $timerStore.selectedTask?.title ?? null;
+
+        if (currentId && currentId !== lastTrackedSessionId && phase) {
+            const total = sessionTargets[session!.sessionType] ?? sessionTargets.Work;
+            startLiveActivity({
+                sessionId: currentId,
+                phase,
+                totalSeconds: total,
+                taskName: taskTitle,
+            }).catch(() => {});
+            lastTrackedSessionId = currentId;
+            lastPhaseForLive = phase;
+            lastLiveUpdateAt = Date.now();
+        } else if (!currentId && lastTrackedSessionId) {
+            endLiveActivity().catch(() => {});
+            lastTrackedSessionId = null;
+            lastPhaseForLive = null;
+            lastLiveUpdateAt = 0;
+        } else if (currentId && phase && lastPhaseForLive && phase !== lastPhaseForLive) {
+            const total = sessionTargets[session!.sessionType] ?? sessionTargets.Work;
+            startLiveActivity({
+                sessionId: currentId,
+                phase,
+                totalSeconds: total,
+                taskName: taskTitle,
+            }).catch(() => {});
+            lastPhaseForLive = phase;
+            lastLiveUpdateAt = Date.now();
+        }
+    });
+
+    $effect(() => {
+        void tick;
+        if (!session || !lastTrackedSessionId) return;
+        const now = Date.now();
+        if (now - lastLiveUpdateAt < 60_000) return;
+        const phase = sessionTypeToPhase(session.sessionType);
+        if (!phase) return;
+        const remainingForLive = Math.max(0, remaining);
+        updateLiveActivity({
+            secondsRemaining: remainingForLive,
+            isPaused: false,
+            phase,
+            taskName: $timerStore.selectedTask?.title ?? null,
+        }).catch(() => {});
+        lastLiveUpdateAt = now;
     });
 
     let dashOffset = $derived(CIRCUMFERENCE * (1 - clampedProgress));
