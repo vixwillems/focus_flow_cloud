@@ -13,7 +13,7 @@ pub fn api_routes(state: AppState) -> Router<AppState> {
         .nest("/category", crate::tasks::http::category::routes::router())
         .nest("/task", crate::tasks::http::task::routes::router())
         .nest(
-            "/focus-session",
+            "/focus-sessions",
             crate::tasks::http::session::routes::router(),
         )
         .nest(

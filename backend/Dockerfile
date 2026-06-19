@@ -1,47 +1,30 @@
-# ---- Backend build stage ----
-FROM rust:1.86-bullseye AS backend-builder
-
-# Install build dependencies for Diesel with Postgres
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-    pkg-config \
-    libpq-dev \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
+FROM lukemathwalker/cargo-chef:latest-rust-bookworm AS chef
 WORKDIR /app
 
-# Cache dependencies by creating a dummy project
+FROM chef AS planner
 COPY Cargo.toml Cargo.lock ./
+COPY backend/Cargo.toml backend/
+COPY backend/crates/adapters/Cargo.toml backend/crates/adapters/
+COPY backend/crates/application/Cargo.toml backend/crates/application/
+COPY backend/crates/domain/Cargo.toml backend/crates/domain/
+COPY backend/crates/infrastructure/Cargo.toml backend/crates/infrastructure/
+# dummy source so planner can resolve the dependency tree
+RUN mkdir -p backend/src backend/crates/adapters/src backend/crates/application/src backend/crates/domain/src backend/crates/infrastructure/src && \
+    echo "fn main() {}" > backend/src/main.rs && \
+    for d in adapters application domain infrastructure; do touch "backend/crates/$d/src/lib.rs"; done
+RUN cargo chef prepare --recipe-path recipe.json --bin focus_flow_cloud
 
-COPY crates ./crates
-COPY src ./src
-COPY migrations ./migrations
+FROM chef AS builder
+RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
 
-# Build the actual binary
-RUN cargo build --release --bin focus_flow_cloud
+COPY Cargo.toml Cargo.lock ./
+COPY backend/ ./backend/
+RUN cargo build --release -p focus_flow_cloud
 
-# ---- Runtime stage ----
-FROM debian:bullseye-slim AS runtime
-
-# Install runtime dependencies
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-    libpq5 \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && update-ca-certificates
-
-WORKDIR /app
-
-# Copy the compiled binary from builder
-COPY --from=backend-builder /app/target/release/focus_flow_cloud /app/focus_flow_cloud
-
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends libpq5 ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /app/target/release/focus_flow_cloud /usr/local/bin/focus_flow_cloud
 EXPOSE 8080
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:${SERVER_PORT:-8080}/api-docs/openapi.json || exit 1
-
-# Run the application
-CMD ["/app/focus_flow_cloud"]
+CMD ["focus_flow_cloud"]
