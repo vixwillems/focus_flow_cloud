@@ -157,11 +157,35 @@ EOF
 
 Free Apple IDs have signing certificates that expire after **7 days**. When the app stops launching on the iPhone with "untrusted developer":
 
-1. Re-run the build: `bun run tauri ios build --debug --target aarch64`
+1. Re-run the build: `bun run tauri ios build --debug --target aarch64` (or release — see below)
 2. Reinstall: `xcrun devicectl device install app app/src-tauri/gen/apple/build/arm64/FocusFlow.ipa`
 3. On the iPhone: Settings → General → VPN & Device Management → tap the Apple ID → Trust (only needed if the cert has changed)
 
 You can also re-sign without rebuilding via Xcode: Window → Devices and Simulators → select device → long-press the app → "Reinstall" or just drag a fresh build.
+
+## Debug vs Release iOS build (the localhost:5173 trap)
+
+`bun run tauri ios build --debug` produces a **debug** iOS app. Tauri 2 configures the WKWebView to load the URL from `tauri.conf.json > build.devUrl` (default: `http://localhost:5173/`). On iOS:
+
+- `localhost` resolves to the **device itself**, not your Mac.
+- The Vite dev server is not running on the iPhone/iPad.
+- iOS's **Local Network privacy** feature blocks the connection attempt, and the app shows a modal error:
+  > "Failed to request http://localhost:5173/: error sending request for url... did you grant local network permissions?"
+
+The "Local Network" toggle is *not* in **Settings → Privacy & Security → Local Network** for first-launch apps; it appears only after iOS denies a request and the user re-opens the app. The error is not fixable from Settings for a fresh install.
+
+**Fix: build a release iOS app.** Release builds load the bundled static assets (`tauri.conf.json > build.frontendDist`, here `app/build/`) instead of `devUrl`, so there's no localhost request to fail:
+
+```sh
+cd app
+bun run tauri ios build --target aarch64    # NOTE: no --debug
+xcrun devicectl device install app --device <UDID> \
+    app/src-tauri/gen/apple/build/arm64/FocusFlow.ipa
+```
+
+The release IPA is smaller (82 MB vs 90 MB for debug) and works on any device. Both builds need the same fake Tauri WebSocket server for the pre-build script (see "Multi-device iOS builds" above).
+
+**One gotcha for release + free Apple ID:** the first release build on a fresh device sometimes needs `-allowProvisioningDeviceRegistration` to add the device to your team. The `tauri ios build` invocation above doesn't expose xcodebuild's flags directly; if you hit the same profile error, see the multi-device section — the same `xcodebuild -archivePath ... archive` + `xcodebuild -exportArchive` recipe works for release too.
 
 ## Build Config Tweaks (already in place)
 

@@ -353,6 +353,22 @@ cd app && bun run tauri ios build --debug --target aarch64
 
 The SDK patches documented in `app/ios-fix.md` are only needed if you switch back to the Xcode 27 beta toolchain. The patches live in `/Applications/Xcode-beta.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/...` and require `sudo` to maintain.
 
+### Debug vs Release iOS build (the localhost:5173 trap)
+
+`bun run tauri ios build --debug` produces a **debug** iOS app. Tauri 2 configures the WKWebView to load `tauri.conf.json > build.devUrl` (default: `http://localhost:5173/`). On iOS, `localhost` is the **device itself**, not your Mac, and iOS's Local Network privacy blocks the connection. The app shows:
+
+> "Failed to request http://localhost:5173/: error sending request for url... did you grant local network permissions?"
+
+**Fix: build a release iOS app** (no `--debug`). Release builds load the bundled static assets from `frontendDist` (`app/build/`) instead of `devUrl`:
+
+```sh
+cd app && bun run tauri ios build --target aarch64
+xcrun devicectl device install app --device <UDID> \
+    app/src-tauri/gen/apple/build/arm64/FocusFlow.ipa
+```
+
+The release IPA is smaller (~82 MB vs ~90 MB for debug) and works on any device without local-network gymnastics. If you need hot-reload later, build debug for the iPhone with a working dev server and a reachable `devUrl`, and release for everything else.
+
 ### Server-side fact sheet
 
 - Server: `agent@focuscloud` (Debian 13 trixie, 2 CPU / 4 GB / 20 GB).
