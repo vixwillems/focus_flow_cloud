@@ -114,4 +114,19 @@ public enum SharedStorage {
     public static func setLiveActivityEnabled(_ enabled: Bool) {
         defaults?.set(enabled, forKey: liveActivityEnabledKey)
     }
+
+    /// Write a one-line diagnostic blob to the App Group so we can inspect
+    /// what the iOS app actually saw at runtime (e.g. `areActivitiesEnabled`,
+    /// the App Group container path, the iOS version, etc.) from the host
+    /// Mac via the App Group's shared filesystem path. The key is keyed by
+    /// `diagnosticsKey` and overwritten on every call.
+    public static let diagnosticsKey = "ff.diagnostics"
+    public static func writeDiagnostics(_ blob: String) {
+        guard let defaults else { return }
+        defaults.set(blob, forKey: diagnosticsKey)
+    }
+    public static func readDiagnostics() -> String? {
+        guard let defaults else { return nil }
+        return defaults.string(forKey: diagnosticsKey)
+    }
 }

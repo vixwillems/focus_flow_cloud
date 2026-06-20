@@ -37,6 +37,17 @@ static NSString * _Nullable FFLAC_Str(const char * s) {
     return str;
 }
 
+// Mirror of SharedStorage.writeDiagnostics — duplicates the call from C so
+// the .mm side can write diagnostics too without needing a Swift callback.
+// (We cannot use SharedStorage directly from .mm because it's a Swift enum
+// with a static method, which would force us to import the auto-generated
+// FocusFlow-Swift.h header.)
+static void FFLAC_WriteDiagnostics(NSString * _Nonnull blob) {
+    NSString *suite = @"group.com.francescopio.focusflow";
+    NSUserDefaults *defaults = [[NSUserDefaults alloc] initWithSuiteName:suite];
+    [defaults setObject:blob forKey:@"ff.diagnostics"];
+}
+
 @implementation FFLiveActivityBridge
 + (FFLiveActivity * _Nullable)shared {
     return (FFLiveActivity *)FFLAC_Shared();
@@ -45,13 +56,50 @@ static NSString * _Nullable FFLAC_Str(const char * s) {
 
 extern "C" {
 
+void ff_write_diagnostics(const char * blob) {
+    if (blob == NULL) return;
+    NSString *str = [NSString stringWithUTF8String:blob];
+    if (str == nil) return;
+    FFLAC_WriteDiagnostics(str);
+}
+
+// Returns a heap-allocated C string. The Rust side reads it with CStr
+// and copies it. Caller must not free — we use a static buffer to
+// avoid lifetime issues across the FFI boundary.
+static char kDiagBuffer[2048] = {0};
+const char * ff_live_activity_read_diagnostics(void) {
+    NSString *suite = @"group.com.francescopio.focusflow";
+    NSUserDefaults *defaults = [[NSUserDefaults alloc] initWithSuiteName:suite];
+    NSString *blob = [defaults stringForKey:@"ff.diagnostics"];
+    if (blob == nil) {
+        snprintf(kDiagBuffer, sizeof(kDiagBuffer), "no diagnostic written yet");
+    } else {
+        snprintf(kDiagBuffer, sizeof(kDiagBuffer), "%s", [blob UTF8String]);
+    }
+    return kDiagBuffer;
+}
+
 bool ff_live_activity_is_available(void) {
+    Class cls = FFLAC_Class();
+    if (cls == NULL) {
+        FFLAC_WriteDiagnostics(@"ff_live_activity_is_available: FFLiveActivity class not found (NSClassFromString returned nil)");
+        return false;
+    }
     id shared = FFLAC_Shared();
-    if (shared == nil) return false;
+    if (shared == nil) {
+        FFLAC_WriteDiagnostics(@"ff_live_activity_is_available: +shared returned nil (class found, but instance is nil)");
+        return false;
+    }
     SEL sel = NSSelectorFromString(@"isAvailable");
-    if (![shared respondsToSelector:sel]) return false;
+    if (![shared respondsToSelector:sel]) {
+        FFLAC_WriteDiagnostics(@"ff_live_activity_is_available: -isAvailable selector not found (class+shared found, but doesn't respond to isAvailable)");
+        return false;
+    }
     BOOL (*msg)(id, SEL) = (BOOL (*)(id, SEL))objc_msgSend;
-    return msg(shared, sel);
+    BOOL result = msg(shared, sel);
+    // The Swift side will overwrite this with a richer diagnostic.
+    FFLAC_WriteDiagnostics([NSString stringWithFormat:@"ff_live_activity_is_available: C function returned %d (Swift may overwrite)", result]);
+    return result;
 }
 
 bool ff_live_activity_is_enabled(void) {

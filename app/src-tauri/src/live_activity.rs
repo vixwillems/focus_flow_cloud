@@ -34,6 +34,8 @@ type FnUpdate = unsafe extern "C" fn(c_int, bool, *const c_char, *const c_char) 
 type FnEnd = unsafe extern "C" fn() -> bool;
 #[cfg(target_os = "ios")]
 type FnEndAll = unsafe extern "C" fn();
+#[cfg(target_os = "ios")]
+type FnReadDiagnostics = unsafe extern "C" fn() -> *const c_char;
 
 #[cfg(target_os = "ios")]
 mod loader {
@@ -48,6 +50,7 @@ mod loader {
         pub update: Option<FnUpdate>,
         pub end: Option<FnEnd>,
         pub end_all: Option<FnEndAll>,
+        pub read_diagnostics: Option<FnReadDiagnostics>,
     }
 
     static FNS: OnceLock<LiveActivityFns> = OnceLock::new();
@@ -63,17 +66,9 @@ mod loader {
         let handle = std::ptr::null_mut();
         let cstr = match CString::new(name) {
             Ok(c) => c,
-            Err(e) => {
-                os_log_failure(name, &e);
-                return std::ptr::null_mut();
-            }
+            Err(_) => return std::ptr::null_mut(),
         };
         unsafe { dlsym(handle, cstr.as_ptr()) }
-    }
-
-    fn os_log_failure(name: &[u8], err: &std::ffi::NulError) {
-        // Best-effort log so the iOS Console shows *why* a symbol is missing.
-        let _ = (name, err);
     }
 
     fn load() -> LiveActivityFns {
@@ -93,6 +88,7 @@ mod loader {
             update: unsafe { sym::<FnUpdate>(b"ff_live_activity_update") },
             end: unsafe { sym::<FnEnd>(b"ff_live_activity_end") },
             end_all: unsafe { sym::<FnEndAll>(b"ff_live_activity_end_all") },
+            read_diagnostics: unsafe { sym::<FnReadDiagnostics>(b"ff_live_activity_read_diagnostics") },
         }
     }
 
@@ -226,3 +222,27 @@ pub fn live_activity_end_all() {
 #[cfg(not(target_os = "ios"))]
 #[tauri::command]
 pub fn live_activity_end_all() {}
+
+/// Return a diagnostic string the Swift side has written to the App Group
+/// shared UserDefaults. The JS layer can display this verbatim so we can
+/// see exactly what the iOS side saw at runtime.
+#[cfg(target_os = "ios")]
+#[tauri::command]
+pub fn live_activity_diagnostics() -> String {
+    let f = match loader::fns().read_diagnostics {
+        Some(f) => f,
+        None => return "diagnostics symbol not found (dlsym failed)".to_string(),
+    };
+    let ptr = unsafe { f() };
+    if ptr.is_null() {
+        return "diagnostics returned null".to_string();
+    }
+    let s = unsafe { std::ffi::CStr::from_ptr(ptr) };
+    s.to_string_lossy().into_owned()
+}
+
+#[cfg(not(target_os = "ios"))]
+#[tauri::command]
+pub fn live_activity_diagnostics() -> String {
+    "iOS-only".to_string()
+}

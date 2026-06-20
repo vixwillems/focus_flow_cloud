@@ -125,3 +125,12 @@ export async function endLiveActivity() {
         /* ignore */
     }
 }
+
+export async function liveActivityDiagnostics(): Promise<string> {
+    if (!isTauriIOS()) return 'not iOS'
+    try {
+        return await invoke<string>('live_activity_diagnostics')
+    } catch (e) {
+        return `error: ${e instanceof Error ? e.message : String(e)}`
+    }
+}

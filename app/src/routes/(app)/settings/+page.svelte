@@ -11,6 +11,7 @@
         isTauriIOS,
         liveActivityAvailable,
         liveActivityUserEnabled,
+        liveActivityDiagnostics,
         setLiveActivityUserEnabled,
     } from "$lib/liveActivity";
 
@@ -110,12 +111,20 @@
     let liveActivityEnabled = $state(liveActivityUserEnabled());
     let liveActivityAvailableState = $state(false);
     let liveActivityOnIOS = $state(false);
+    let liveActivityDiag = $state("");
 
     $effect(() => {
         liveActivityOnIOS = isTauriIOS();
         if (!liveActivityOnIOS) return;
         liveActivityAvailable().then((v) => (liveActivityAvailableState = v));
+        liveActivityDiagnostics().then((s) => (liveActivityDiag = s));
     });
+
+    function refreshLiveActivityDiag() {
+        if (!liveActivityOnIOS) return;
+        liveActivityAvailable().then((v) => (liveActivityAvailableState = v));
+        liveActivityDiagnostics().then((s) => (liveActivityDiag = s));
+    }
 
     function toggleLiveActivity() {
         liveActivityEnabled = !liveActivityEnabled;
@@ -233,6 +242,21 @@
                         Show focus timer in Live Activity
                     </span>
                 </label>
+                {#if liveActivityDiag}
+                    <details class="mt-3">
+                        <summary class="text-xs text-surface-500 cursor-pointer select-none">
+                            Diagnostic
+                        </summary>
+                        <pre
+                            class="mt-2 p-2 rounded bg-surface-900 border border-surface-700 text-[10px] text-surface-300 font-mono whitespace-pre-wrap break-all">{liveActivityDiag}</pre>
+                        <button
+                            class="mt-2 btn btn-sm preset-tonal-surface text-xs"
+                            onclick={refreshLiveActivityDiag}
+                        >
+                            Refresh
+                        </button>
+                    </details>
+                {/if}
             </SettingsSection>
         {/if}
 

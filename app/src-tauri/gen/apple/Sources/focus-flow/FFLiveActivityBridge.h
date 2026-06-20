@@ -35,4 +35,7 @@ bool ff_live_activity_update(
 bool ff_live_activity_end(void);
 void ff_live_activity_end_all(void);
 
+void ff_write_diagnostics(const char * _Nonnull blob);
+const char * _Nullable ff_live_activity_read_diagnostics(void);
+
 }

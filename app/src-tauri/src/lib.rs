@@ -12,6 +12,7 @@ pub fn run() {
       live_activity::live_activity_update,
       live_activity::live_activity_end,
       live_activity::live_activity_end_all,
+      live_activity::live_activity_diagnostics,
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {

@@ -20,8 +20,22 @@ public final class LiveActivityController: NSObject {
 
     @objc public func isAvailable() -> Bool {
         if #available(iOS 16.2, *) {
-            return ActivityAuthorizationInfo().areActivitiesEnabled
+            let enabled = ActivityAuthorizationInfo().areActivitiesEnabled
+            let iosVersion = ProcessInfo.processInfo.operatingSystemVersionString
+            let bundleId = Bundle.main.bundleIdentifier ?? "?"
+            let appGroupContainer = FileManager.default.containerURL(
+                forSecurityApplicationGroupIdentifier: SharedStorage.appGroup
+            )?.path ?? "nil"
+            let blob = """
+            isAvailable iOS=\(iosVersion) bundle=\(bundleId) \
+            areActivitiesEnabled=\(enabled ? "true" : "false") \
+            appGroupContainer=\(appGroupContainer)
+            """
+            SharedStorage.writeDiagnostics(blob)
+            os_log("%{public}@", log: log, type: .info, blob)
+            return enabled
         }
+        SharedStorage.writeDiagnostics("isAvailable: iOS < 16.2")
         return false
     }
 

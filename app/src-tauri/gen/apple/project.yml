@@ -52,9 +52,6 @@ targets:
       - path: ../../Shared
         type: group
       - path: Assets.xcassets
-      - path: Externals
-        excludes:
-          - "**/*.a"
       - path: focus-flow_iOS
       - path: assets
         buildPhase: resources
@@ -97,6 +94,16 @@ targets:
         LIBRARY_SEARCH_PATHS[arch=arm64]: $(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: true
         EXCLUDED_ARCHS[sdk=iphoneos*]: x86_64
+        # Force the linker to keep the Live Activity FFI symbols even though
+        # no compiled C/Obj-C++ code references them statically — the Rust
+        # side looks them up at runtime via dlsym, which the linker cannot
+        # see. Without -u, the release linker's DEAD_CODE_STRIPPING drops
+        # every ff_live_activity_* symbol, the FFLiveActivity Swift class,
+        # and the entire ActivityKit-backed timer stack — and the in-app
+        # Settings page then reports "Live Activities are not available"
+        # because the dlsym lookup for ff_live_activity_is_available
+        # returns null.
+        OTHER_LDFLAGS: $(inherited) -Wl,-u,_ff_live_activity_is_available -Wl,-u,_ff_live_activity_is_enabled -Wl,-u,_ff_live_activity_set_enabled -Wl,-u,_ff_live_activity_start -Wl,-u,_ff_live_activity_update -Wl,-u,_ff_live_activity_end -Wl,-u,_ff_live_activity_end_all -Wl,-u,_ff_live_activity_read_diagnostics -Wl,-u,_ff_write_diagnostics
       groups: [app]
     dependencies:
       - framework: libapp.a
