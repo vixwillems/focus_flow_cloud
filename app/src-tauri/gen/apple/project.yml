@@ -53,6 +53,8 @@ targets:
         type: group
       - path: Assets.xcassets
       - path: Externals
+        excludes:
+          - "**/*.a"
       - path: focus-flow_iOS
       - path: assets
         buildPhase: resources
@@ -79,6 +81,9 @@ targets:
         NSSupportsLiveActivitiesFrequentUpdates: true
     entitlements:
       path: focus-flow_iOS/focus-flow_iOS.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.francescopio.focusflow
     scheme:
       environmentVariables:
         RUST_BACKTRACE: full
@@ -103,7 +108,6 @@ targets:
       - sdk: Security.framework
       - sdk: UIKit.framework
       - sdk: WebKit.framework
-      - sdk: ActivityKit.framework
       - sdk: SwiftUI.framework
       - target: FocusFlowWidgetExtension
         embed: true
@@ -136,6 +140,9 @@ targets:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:
       path: ../../FocusFlowWidgetExtension/FocusFlowWidgetExtension.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.francescopio.focusflow
     settings:
       base:
         ENABLE_BITCODE: false
@@ -146,4 +153,3 @@ targets:
     dependencies:
       - sdk: SwiftUI.framework
       - sdk: WidgetKit.framework
-      - sdk: ActivityKit.framework
