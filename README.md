@@ -3,13 +3,15 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Backend CI](https://github.com/vixwillems/focus_flow_cloud/actions/workflows/ci-backend.yaml/badge.svg)](https://github.com/vixwillems/focus_flow_cloud/actions)
 [![App CI](https://github.com/vixwillems/focus_flow_cloud/actions/workflows/ci-app.yaml/badge.svg)](https://github.com/vixwillems/focus_flow_cloud/actions)
-[![Documentation](https://img.shields.io/badge/docs-focusflow-brightgreen)](https://francesco-gaglione.github.io/focus_flow_cloud/)
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee-icon)](https://buymeacoffee.com/francescogaglione)
 [![codecov](https://codecov.io/gh/vixwillems/focus_flow_cloud/branch/master/graph/badge.svg)](https://codecov.io/gh/vixwillems/focus_flow_cloud)
+
+> **This is a personal fork** of [francesco-gaglione/focus_flow_cloud](https://github.com/francesco-gaglione/focus_flow_cloud) by [@vixwillems](https://github.com/vixwillems).
+> All credit for the original design, architecture, and implementation goes to [Francesco Gaglione](https://github.com/francesco-gaglione).
+> This fork may contain local modifications. For the canonical project, documentation, and upstream releases, please visit the [original repository](https://github.com/francesco-gaglione/focus_flow_cloud).
 
 A self-hostable Pomodoro + task management ecosystem: a Rust backend with a real-time WebSocket API, and a native cross-platform client built with Tauri v2 + SvelteKit that runs on macOS, Windows, Linux, Android, and iOS.
 
-> **Full Documentation**: [https://francesco-gaglione.github.io/focus_flow_cloud/](https://francesco-gaglione.github.io/focus_flow_cloud/)
+> **Upstream Documentation**: [https://francesco-gaglione.github.io/focus_flow_cloud/](https://francesco-gaglione.github.io/focus_flow_cloud/)
 
 ## Screenshots
 
@@ -42,7 +44,7 @@ FocusFlow is a complete ecosystem for time management using the Pomodoro techniq
 - **Self-host, your data**: Run the backend wherever you want. The client points at your URL on first launch — no cloud account required.
 - **Native Experience**: macOS / Windows / Linux / Android / iOS, distributed as a thin native shell around the same SvelteKit SPA.
 
-I built this project for my personal use to optimize my daily workflow and decided to share it as open source.
+This project was originally created by [Francesco Gaglione](https://github.com/francesco-gaglione) for personal use and shared as open source.
 
 ## Project Structure
 
@@ -237,6 +239,12 @@ We strictly follow **[Conventional Commits](https://www.conventionalcommits.org/
 - The app is a single SvelteKit SPA; one bundle serves desktop, mobile, and the embedded Tauri webview.
 - Diesel migrations are embedded at compile time via `embed_migrations!`, so a freshly-built backend always knows how to bring an empty DB up to schema.
 - iOS releases are produced by the same `bun run tauri ios build` command as any other target — no separate mobile codebase.
+
+## Credits
+
+This project is a fork of [FocusFlow](https://github.com/francesco-gaglione/focus_flow_cloud) by [Francesco Gaglione](https://github.com/francesco-gaglione), who designed and built the original application. Please consider supporting his work:
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee-icon)](https://buymeacoffee.com/francescogaglione)
 
 ## License
 
