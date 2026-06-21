@@ -26,6 +26,15 @@ settingGroups:
       ENABLE_BITCODE: "NO"
       ARCHS: [arm64]
       VALID_ARCHS: arm64
+      # The widget's @main entry point and its WidgetKit/ActivityKit/Shared
+      # code are all dropped by the release linker's DEAD_CODE_STRIPPING
+      # pass because nothing in the linker-visible call graph references
+      # them. Without this, the .appex on the device only contains `_main`
+      # and no actual widgets — so the widget gallery has nothing to load.
+      DEAD_CODE_STRIPPING: "NO"
+      STRIP_INSTALLED_PRODUCT: "NO"
+      STRIP_STYLE: "non-global"
+      DEPLOYMENT_POSTPROCESSING: "NO"
 targetTemplates:
   app:
     type: application
@@ -90,19 +99,31 @@ targets:
         ENABLE_BITCODE: false
         ARCHS: [arm64]
         VALID_ARCHS: arm64
+        ENABLE_USER_SCRIPT_SANDBOXING: "NO"
         LIBRARY_SEARCH_PATHS[arch=x86_64]: $(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)
         LIBRARY_SEARCH_PATHS[arch=arm64]: $(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: true
         EXCLUDED_ARCHS[sdk=iphoneos*]: x86_64
-        # Force the linker to keep the Live Activity FFI symbols even though
-        # no compiled C/Obj-C++ code references them statically — the Rust
-        # side looks them up at runtime via dlsym, which the linker cannot
-        # see. Without -u, the release linker's DEAD_CODE_STRIPPING drops
-        # every ff_live_activity_* symbol, the FFLiveActivity Swift class,
-        # and the entire ActivityKit-backed timer stack — and the in-app
-        # Settings page then reports "Live Activities are not available"
-        # because the dlsym lookup for ff_live_activity_is_available
-        # returns null.
+        # Same dead-code-stripping fix as the widget — without this, the
+        # release linker drops every `ff_live_activity_*` C symbol and the
+        # FFLiveActivity Obj-C class even though `__attribute__((used))` is
+        # applied on each C definition. The C attribute on its own is not
+        # enough in the app target's link step; the linker still discards
+        # the FFLiveActivity class because nothing in the call graph calls
+        # it. Belt-and-suspenders: keep both the attribute and the setting.
+        DEAD_CODE_STRIPPING: "NO"
+        STRIP_INSTALLED_PRODUCT: "NO"
+        STRIP_STYLE: "non-global"
+        DEPLOYMENT_POSTPROCESSING: "NO"
+        # The Live Activity FFI symbols are looked up at runtime via
+        # dlsym(RTLD_DEFAULT, ...), which the linker cannot see. The
+        # actual mechanism that keeps them in the release binary is
+        # `__attribute__((visibility("default"), used))` on each
+        # function in FFLiveActivityBridge.mm — see the header for the
+        # matching `FF_LIVE_ACTIVITY_EXPORT` macro. (The historical
+        # `-Wl,-u,_ff_live_activity_*` form below was the wrong flag for
+        # that job: `-u,` forces symbol resolution from static
+        # libraries, it does NOT prevent DEAD_CODE_STRIPPING.)
         OTHER_LDFLAGS: $(inherited) -Wl,-u,_ff_live_activity_is_available -Wl,-u,_ff_live_activity_is_enabled -Wl,-u,_ff_live_activity_set_enabled -Wl,-u,_ff_live_activity_start -Wl,-u,_ff_live_activity_update -Wl,-u,_ff_live_activity_end -Wl,-u,_ff_live_activity_end_all -Wl,-u,_ff_live_activity_read_diagnostics -Wl,-u,_ff_write_diagnostics
       groups: [app]
     dependencies:
@@ -120,7 +141,7 @@ targets:
         embed: true
         codeSign: true
     preBuildScripts:
-      - script: bun tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
+      - script: export PATH="/Users/vix/.cargo/bin:/Users/vix/.bun/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin" && /Users/vix/.bun/bin/bun tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
         name: Build Rust Code
         basedOnDependencyAnalysis: false
         outputFiles:
@@ -160,3 +181,4 @@ targets:
     dependencies:
       - sdk: SwiftUI.framework
       - sdk: WidgetKit.framework
+      - sdk: ActivityKit.framework

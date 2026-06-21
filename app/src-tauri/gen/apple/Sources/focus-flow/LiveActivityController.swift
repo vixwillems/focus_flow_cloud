@@ -1,6 +1,7 @@
 import ActivityKit
 import Foundation
 import os.log
+import WidgetKit
 
 #if canImport(UIKit)
 import UIKit
@@ -103,6 +104,7 @@ public final class LiveActivityController: NSObject {
                 updatedAt: now,
                 sessionId: sessionId
             ))
+            WidgetCenter.shared.reloadAllTimelines()
             os_log("Started live activity: %@ (phase=%{public}@, total=%d)", log: log, type: .info, activity.id, phaseRaw, totalSeconds)
             return true
         } catch {
@@ -148,6 +150,7 @@ public final class LiveActivityController: NSObject {
                     updatedAt: now,
                     sessionId: activity.attributes.sessionId
                 ))
+                WidgetCenter.shared.reloadAllTimelines()
                 return
             }
         }
@@ -157,6 +160,7 @@ public final class LiveActivityController: NSObject {
     @objc public func endActivity() -> Bool {
         guard let activityId = currentActivityId else {
             SharedStorage.writeState(.idle)
+            WidgetCenter.shared.reloadAllTimelines()
             return false
         }
         currentActivityId = nil
@@ -172,6 +176,7 @@ public final class LiveActivityController: NSObject {
             }
         }
         SharedStorage.writeState(.idle)
+        WidgetCenter.shared.reloadAllTimelines()
         return true
     }
 
@@ -187,5 +192,17 @@ public final class LiveActivityController: NSObject {
             }
         }
         SharedStorage.writeState(.idle)
+    }
+
+    /// Called when the app returns to the foreground. Reloads all widget
+    /// timelines so the StandBy widget (and any other widget) picks up the
+    /// latest state from SharedStorage without waiting for WidgetKit's
+    /// periodic refresh. Also re-checks Live Activity availability on the
+    /// next attempt (the dlsym / authorization cache is cleared naturally
+    /// when the Rust side resets its cache on the JS side via the
+    /// foreground event).
+    @objc public func didForeground() {
+        WidgetCenter.shared.reloadAllTimelines()
+        os_log("Reloaded all widget timelines on foreground", log: log, type: .info)
     }
 }

@@ -56,6 +56,7 @@ static void FFLAC_WriteDiagnostics(NSString * _Nonnull blob) {
 
 extern "C" {
 
+__attribute__((visibility("default"), used))
 void ff_write_diagnostics(const char * blob) {
     if (blob == NULL) return;
     NSString *str = [NSString stringWithUTF8String:blob];
@@ -67,6 +68,7 @@ void ff_write_diagnostics(const char * blob) {
 // and copies it. Caller must not free — we use a static buffer to
 // avoid lifetime issues across the FFI boundary.
 static char kDiagBuffer[2048] = {0};
+__attribute__((visibility("default"), used))
 const char * ff_live_activity_read_diagnostics(void) {
     NSString *suite = @"group.com.francescopio.focusflow";
     NSUserDefaults *defaults = [[NSUserDefaults alloc] initWithSuiteName:suite];
@@ -79,6 +81,7 @@ const char * ff_live_activity_read_diagnostics(void) {
     return kDiagBuffer;
 }
 
+__attribute__((visibility("default"), used))
 bool ff_live_activity_is_available(void) {
     Class cls = FFLAC_Class();
     if (cls == NULL) {
@@ -102,6 +105,7 @@ bool ff_live_activity_is_available(void) {
     return result;
 }
 
+__attribute__((visibility("default"), used))
 bool ff_live_activity_is_enabled(void) {
     id shared = FFLAC_Shared();
     if (shared == nil) return false;
@@ -111,6 +115,7 @@ bool ff_live_activity_is_enabled(void) {
     return msg(shared, sel);
 }
 
+__attribute__((visibility("default"), used))
 void ff_live_activity_set_enabled(bool enabled) {
     id shared = FFLAC_Shared();
     if (shared == nil) return;
@@ -120,6 +125,7 @@ void ff_live_activity_set_enabled(bool enabled) {
     msg(shared, sel, enabled ? YES : NO);
 }
 
+__attribute__((visibility("default"), used))
 bool ff_live_activity_start(const char * session_id, const char * phase, int32_t total_seconds, const char * _Nullable task_name) {
     id shared = FFLAC_Shared();
     if (shared == NULL) return false;
@@ -134,9 +140,13 @@ bool ff_live_activity_start(const char * session_id, const char * phase, int32_t
 
     BOOL (*msg)(id, SEL, NSString *, NSString *, int32_t, NSString *) =
         (BOOL (*)(id, SEL, NSString *, NSString *, int32_t, NSString *))objc_msgSend;
-    return msg(shared, sel, sidStr, phaseStr, total_seconds, (taskStr ?: (NSString *)[NSNull null]));
+    // Pass `taskStr` directly (may be nil). Do NOT fall back to [NSNull null] —
+    // Swift's Obj-C bridge for `String?` expects nil, and NSNull is not an
+    // NSString, which would crash when Swift tries to bridge the value.
+    return msg(shared, sel, sidStr, phaseStr, total_seconds, taskStr);
 }
 
+__attribute__((visibility("default"), used))
 bool ff_live_activity_update(int32_t seconds_remaining, bool is_paused, const char * phase, const char * _Nullable task_name) {
     id shared = FFLAC_Shared();
     if (shared == NULL) return false;
@@ -150,9 +160,11 @@ bool ff_live_activity_update(int32_t seconds_remaining, bool is_paused, const ch
 
     BOOL (*msg)(id, SEL, int32_t, BOOL, NSString *, NSString *) =
         (BOOL (*)(id, SEL, int32_t, BOOL, NSString *, NSString *))objc_msgSend;
-    return msg(shared, sel, seconds_remaining, is_paused ? YES : NO, phaseStr, (taskStr ?: (NSString *)[NSNull null]));
+    // See comment in ff_live_activity_start: pass nil, never [NSNull null].
+    return msg(shared, sel, seconds_remaining, is_paused ? YES : NO, phaseStr, taskStr);
 }
 
+__attribute__((visibility("default"), used))
 bool ff_live_activity_end(void) {
     id shared = FFLAC_Shared();
     if (shared == NULL) return false;
@@ -162,11 +174,28 @@ bool ff_live_activity_end(void) {
     return msg(shared, sel);
 }
 
+__attribute__((visibility("default"), used))
 void ff_live_activity_end_all(void) {
     id shared = FFLAC_Shared();
     if (shared == NULL) return;
     SEL sel = NSSelectorFromString(@"endAllActivities");
     if (![shared respondsToSelector:sel]) return;
+    void (*msg)(id, SEL) = (void (*)(id, SEL))objc_msgSend;
+    msg(shared, sel);
+}
+
+__attribute__((visibility("default"), used))
+void ff_live_activity_did_foreground(void) {
+    id shared = FFLAC_Shared();
+    if (shared == NULL) {
+        FFLAC_WriteDiagnostics(@"ff_live_activity_did_foreground: shared is nil");
+        return;
+    }
+    SEL sel = NSSelectorFromString(@"didForeground");
+    if (![shared respondsToSelector:sel]) {
+        FFLAC_WriteDiagnostics(@"ff_live_activity_did_foreground: selector not found");
+        return;
+    }
     void (*msg)(id, SEL) = (void (*)(id, SEL))objc_msgSend;
     msg(shared, sel);
 }

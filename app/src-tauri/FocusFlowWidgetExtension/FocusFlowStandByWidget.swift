@@ -350,12 +350,24 @@ private struct SystemLargeView: View {
 
 @ViewBuilder
 func backgroundGradient(for phase: FocusPhase) -> some View {
-    LinearGradient(
-        colors: [
-            Color(red: 0.16, green: 0.20, blue: 0.31),
-            Color(red: 0.06, green: 0.10, blue: 0.18),
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    // Match the lock-screen Live Activity gradient so the widget and the Live
+    // Activity read as the same surface. Previously this function ignored its
+    // `phase` argument and always rendered the dark-blue work gradient.
+    let colors: [Color] = {
+        switch phase {
+        case .work:
+            return [Color(red: 0.16, green: 0.20, blue: 0.31),
+                    Color(red: 0.09, green: 0.13, blue: 0.22)]
+        case .shortBreak:
+            return [Color(red: 0.12, green: 0.32, blue: 0.30),
+                    Color(red: 0.06, green: 0.20, blue: 0.20)]
+        case .longBreak:
+            return [Color(red: 0.22, green: 0.27, blue: 0.16),
+                    Color(red: 0.12, green: 0.16, blue: 0.08)]
+        case .idle:
+            return [Color(red: 0.18, green: 0.18, blue: 0.22),
+                    Color(red: 0.10, green: 0.10, blue: 0.14)]
+        }
+    }()
+    LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
 }

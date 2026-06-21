@@ -11,14 +11,15 @@
 // executable (the iOS app binary). This works because:
 //   1. The iOS app binary is the main executable (not a dylib loaded by it).
 //   2. `dlsym(RTLD_DEFAULT, "ff_live_activity_*")` resolves symbols in the
-//      main executable as well as all loaded dylibs.
+//      main executable as well as all loaded dylibs. `RTLD_DEFAULT` is
+//      `((void *) -2)` on Apple — see `dlsym()` below for why NULL is wrong.
 //   3. By the time any of our Tauri commands run, the iOS app is fully
 //      loaded, so the symbols are present.
 //
 // On non-iOS platforms the runtime lookup always returns null and the
 // Tauri commands are no-ops.
 
-use std::ffi::{CString, c_void, c_char, c_int};
+use std::ffi::{c_char, c_int, c_void, CString};
 
 #[cfg(target_os = "ios")]
 type FnIsAvailable = unsafe extern "C" fn() -> bool;
@@ -35,6 +36,8 @@ type FnEnd = unsafe extern "C" fn() -> bool;
 #[cfg(target_os = "ios")]
 type FnEndAll = unsafe extern "C" fn();
 #[cfg(target_os = "ios")]
+type FnDidForeground = unsafe extern "C" fn();
+#[cfg(target_os = "ios")]
 type FnReadDiagnostics = unsafe extern "C" fn() -> *const c_char;
 
 #[cfg(target_os = "ios")]
@@ -50,6 +53,7 @@ mod loader {
         pub update: Option<FnUpdate>,
         pub end: Option<FnEnd>,
         pub end_all: Option<FnEndAll>,
+        pub did_foreground: Option<FnDidForeground>,
         pub read_diagnostics: Option<FnReadDiagnostics>,
     }
 
@@ -62,8 +66,14 @@ mod loader {
         unsafe extern "C" {
             fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
         }
-        // RTLD_DEFAULT = ((void *) 0) on Apple platforms.
-        let handle = std::ptr::null_mut();
+        // On Apple platforms `RTLD_DEFAULT` is `((void *) -2)`, not NULL.
+        // The historical "0" handle is glibc's convention; passing NULL to
+        // `dlsym` on iOS is undefined behavior and returns NULL, which makes
+        // every `Option<Fn*>` here stay `None` and silently breaks the
+        // entire Live Activity / Widget pipeline. The C functions in
+        // FFLiveActivityBridge.mm are linked into the main executable, so
+        // searching the global scope via RTLD_DEFAULT finds them.
+        let handle: *mut c_void = -2isize as *mut c_void;
         let cstr = match CString::new(name) {
             Ok(c) => c,
             Err(_) => return std::ptr::null_mut(),
@@ -88,7 +98,10 @@ mod loader {
             update: unsafe { sym::<FnUpdate>(b"ff_live_activity_update") },
             end: unsafe { sym::<FnEnd>(b"ff_live_activity_end") },
             end_all: unsafe { sym::<FnEndAll>(b"ff_live_activity_end_all") },
-            read_diagnostics: unsafe { sym::<FnReadDiagnostics>(b"ff_live_activity_read_diagnostics") },
+            did_foreground: unsafe { sym::<FnDidForeground>(b"ff_live_activity_did_foreground") },
+            read_diagnostics: unsafe {
+                sym::<FnReadDiagnostics>(b"ff_live_activity_read_diagnostics")
+            },
         }
     }
 
@@ -114,7 +127,9 @@ pub fn live_activity_is_available() -> bool {
 
 #[cfg(not(target_os = "ios"))]
 #[tauri::command]
-pub fn live_activity_is_available() -> bool { false }
+pub fn live_activity_is_available() -> bool {
+    false
+}
 
 #[cfg(target_os = "ios")]
 #[tauri::command]
@@ -128,7 +143,9 @@ pub fn live_activity_is_enabled() -> bool {
 
 #[cfg(not(target_os = "ios"))]
 #[tauri::command]
-pub fn live_activity_is_enabled() -> bool { false }
+pub fn live_activity_is_enabled() -> bool {
+    false
+}
 
 #[cfg(target_os = "ios")]
 #[tauri::command]
@@ -157,7 +174,10 @@ pub fn live_activity_start(
     let sid = cstr(&session_id);
     let p = cstr(&phase);
     let name = task_name.as_deref().map(cstr);
-    let name_ptr = name.as_ref().map(|s| s.as_ptr()).unwrap_or(std::ptr::null());
+    let name_ptr = name
+        .as_ref()
+        .map(|s| s.as_ptr())
+        .unwrap_or(std::ptr::null());
     unsafe { f(sid.as_ptr(), p.as_ptr(), total_seconds, name_ptr) }
 }
 
@@ -168,7 +188,9 @@ pub fn live_activity_start(
     _phase: String,
     _total_seconds: i32,
     _task_name: Option<String>,
-) -> bool { false }
+) -> bool {
+    false
+}
 
 #[cfg(target_os = "ios")]
 #[tauri::command]
@@ -184,7 +206,10 @@ pub fn live_activity_update(
     };
     let p = cstr(&phase);
     let name = task_name.as_deref().map(cstr);
-    let name_ptr = name.as_ref().map(|s| s.as_ptr()).unwrap_or(std::ptr::null());
+    let name_ptr = name
+        .as_ref()
+        .map(|s| s.as_ptr())
+        .unwrap_or(std::ptr::null());
     unsafe { f(seconds_remaining, is_paused, p.as_ptr(), name_ptr) }
 }
 
@@ -195,7 +220,9 @@ pub fn live_activity_update(
     _is_paused: bool,
     _phase: String,
     _task_name: Option<String>,
-) -> bool { false }
+) -> bool {
+    false
+}
 
 #[cfg(target_os = "ios")]
 #[tauri::command]
@@ -209,7 +236,9 @@ pub fn live_activity_end() -> bool {
 
 #[cfg(not(target_os = "ios"))]
 #[tauri::command]
-pub fn live_activity_end() -> bool { false }
+pub fn live_activity_end() -> bool {
+    false
+}
 
 #[cfg(target_os = "ios")]
 #[tauri::command]
@@ -222,6 +251,18 @@ pub fn live_activity_end_all() {
 #[cfg(not(target_os = "ios"))]
 #[tauri::command]
 pub fn live_activity_end_all() {}
+
+#[cfg(target_os = "ios")]
+#[tauri::command]
+pub fn live_activity_did_foreground() {
+    if let Some(f) = loader::fns().did_foreground {
+        unsafe { f() }
+    }
+}
+
+#[cfg(not(target_os = "ios"))]
+#[tauri::command]
+pub fn live_activity_did_foreground() {}
 
 /// Return a diagnostic string the Swift side has written to the App Group
 /// shared UserDefaults. The JS layer can display this verbatim so we can

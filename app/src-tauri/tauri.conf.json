@@ -36,6 +36,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "iOS": {
+      "developmentTeam": "88QN5KYG2G"
+    },
     "macOS": {
       "infoPlist": "./Info.plist"
     },

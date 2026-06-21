@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { invoke } from "@tauri-apps/api/core";
     import { onMount } from "svelte";
     import { wsStore } from "$lib/ws";
     import { timerStore } from "$lib/stores/timer";
@@ -11,6 +12,7 @@
         startLiveActivity,
         updateLiveActivity,
         endLiveActivity,
+        resetLiveActivityCache,
         type LivePhase,
     } from "$lib/liveActivity";
 
@@ -50,6 +52,15 @@
     onMount(() => {
         wsStore.start();
         tickInterval = setInterval(() => tick++, 1000);
+
+        function onForeground() {
+            resetLiveActivityCache();
+            invoke('live_activity_did_foreground').catch(() => {});
+        }
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') onForeground();
+        });
+
         return () => {
             clearInterval(tickInterval);
             wsStore.stop();
@@ -177,7 +188,7 @@
         void tick;
         if (!session || !lastTrackedSessionId) return;
         const now = Date.now();
-        if (now - lastLiveUpdateAt < 60_000) return;
+        if (now - lastLiveUpdateAt < 5_000) return;
         const phase = sessionTypeToPhase(session.sessionType);
         if (!phase) return;
         const remainingForLive = Math.max(0, remaining);
