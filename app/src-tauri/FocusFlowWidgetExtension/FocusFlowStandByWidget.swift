@@ -44,34 +44,38 @@ struct StandByProvider: TimelineProvider {
         let state = SharedStorage.readState()
         let current = StandByEntry(date: now, state: state)
 
-        guard state.phase != .idle, let startedAt = state.startedAt, state.totalSeconds > 0 else {
+        // No endDate means either idle (no session) or paused (frozen). In
+        // both cases a single entry is enough — Text(timerInterval:) won't
+        // tick without an endDate, and the static secondsRemaining is the
+        // truth anyway.
+        guard state.phase != .idle, let endDate = state.endDate, !state.isPaused else {
             completion(Timeline(entries: [current], policy: .after(now.addingTimeInterval(60 * 5))))
             return
         }
 
         var entries: [StandByEntry] = [current]
-        let total = state.totalSeconds
-        let end = startedAt.addingTimeInterval(TimeInterval(total))
-        let remaining = max(0, Int(end.timeIntervalSince(now).rounded(.down)))
+        let total = state.totalSeconds > 0 ? state.totalSeconds : max(1, Int(endDate.timeIntervalSince(state.startedAt ?? now)))
+        let remaining = max(0, Int(endDate.timeIntervalSince(now).rounded(.down)))
 
         let stepSeconds: Int = (total > 60 * 30) ? 60 : 30
         for offset in stride(from: stepSeconds, through: max(stepSeconds, remaining), by: stepSeconds) {
             let date = now.addingTimeInterval(TimeInterval(offset))
-            let newRemaining = max(0, Int(end.timeIntervalSince(date).rounded(.down)))
+            let newRemaining = max(0, Int(endDate.timeIntervalSince(date).rounded(.down)))
             let entryState = SharedTimerState(
                 phase: state.phase,
                 secondsRemaining: newRemaining,
                 totalSeconds: total,
                 isPaused: state.isPaused,
                 taskName: state.taskName,
-                startedAt: startedAt,
+                startedAt: state.startedAt,
                 updatedAt: date,
-                sessionId: state.sessionId
+                sessionId: state.sessionId,
+                endDate: endDate
             )
             entries.append(StandByEntry(date: date, state: entryState))
         }
 
-        let refreshAt = max(end.addingTimeInterval(60), now.addingTimeInterval(60 * 30))
+        let refreshAt = max(endDate.addingTimeInterval(60), now.addingTimeInterval(60 * 30))
         completion(Timeline(entries: entries, policy: .after(refreshAt)))
     }
 
@@ -134,9 +138,13 @@ private struct AccessoryRectangularView: View {
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.primary)
             } else {
-                Text(entry.state.displayRemaining)
-                    .font(.system(.title3, design: .rounded).monospacedDigit().weight(.semibold))
-                    .foregroundStyle(.primary)
+                focusFlowCountdown(
+                    endDate: entry.state.endDate,
+                    paused: entry.state.isPaused,
+                    fallback: entry.state.displayRemaining,
+                    font: .system(.title3, design: .rounded).monospacedDigit().weight(.semibold),
+                    activeColor: .primary
+                )
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -162,18 +170,16 @@ private struct AccessoryCircularView: View {
                 VStack(spacing: -1) {
                     Image(systemName: entry.phase.symbol)
                         .font(.system(size: 11, weight: .semibold))
-                    Text(shortRemaining(entry.state.secondsRemaining))
-                        .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
+                    focusFlowCountdown(
+                        endDate: entry.state.endDate,
+                        paused: entry.state.isPaused,
+                        fallback: entry.state.displayRemaining,
+                        font: .system(size: 11, weight: .semibold, design: .rounded).monospacedDigit(),
+                        activeColor: .primary
+                    )
                 }
             }
         }
-    }
-
-    private func shortRemaining(_ s: Int) -> String {
-        if s >= 60 {
-            return "\(s / 60)m"
-        }
-        return "\(s)s"
     }
 }
 
@@ -218,9 +224,13 @@ private struct SystemSmallView: View {
                     .foregroundStyle(.white.opacity(0.7))
                     .lineLimit(2)
             } else {
-                Text(entry.state.displayRemaining)
-                    .font(.system(size: 32, weight: .semibold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(.white)
+                focusFlowCountdown(
+                    endDate: entry.state.endDate,
+                    paused: entry.state.isPaused,
+                    fallback: entry.state.displayRemaining,
+                    font: .system(size: 32, weight: .semibold, design: .rounded).monospacedDigit(),
+                    activeColor: .white
+                )
                 if let task = entry.state.taskName, !task.isEmpty {
                     Text(task)
                         .font(.caption2)
@@ -259,9 +269,13 @@ private struct SystemMediumView: View {
                         .foregroundStyle(.white.opacity(0.75))
                         .lineLimit(2)
                 } else {
-                    Text(entry.state.displayRemaining)
-                        .font(.system(size: 44, weight: .semibold, design: .rounded).monospacedDigit())
-                        .foregroundStyle(.white)
+                    focusFlowCountdown(
+                        endDate: entry.state.endDate,
+                        paused: entry.state.isPaused,
+                        fallback: entry.state.displayRemaining,
+                        font: .system(size: 44, weight: .semibold, design: .rounded).monospacedDigit(),
+                        activeColor: .white
+                    )
                     if let task = entry.state.taskName, !task.isEmpty {
                         Text(task)
                             .font(.caption)
@@ -324,9 +338,13 @@ private struct SystemLargeView: View {
                     .foregroundStyle(.white.opacity(0.78))
                     .lineLimit(4)
             } else {
-                Text(entry.state.displayRemaining)
-                    .font(.system(size: 56, weight: .semibold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(.white)
+                focusFlowCountdown(
+                    endDate: entry.state.endDate,
+                    paused: entry.state.isPaused,
+                    fallback: entry.state.displayRemaining,
+                    font: .system(size: 56, weight: .semibold, design: .rounded).monospacedDigit(),
+                    activeColor: .white
+                )
                 ProgressView(value: entry.state.progress)
                     .tint(.white)
                 if let task = entry.state.taskName, !task.isEmpty {

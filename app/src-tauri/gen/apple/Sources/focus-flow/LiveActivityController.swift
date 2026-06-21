@@ -55,7 +55,9 @@ public final class LiveActivityController: NSObject {
         sessionId: String,
         phaseRaw: String,
         totalSeconds: Int,
-        taskName: String?
+        taskName: String?,
+        cycleIndex: Int,
+        cycleTotal: Int
     ) -> Bool {
         guard isEnabled() else {
             os_log("Live activities disabled by user", log: log, type: .info)
@@ -73,20 +75,24 @@ public final class LiveActivityController: NSObject {
         let phase = FocusPhase(rawValue: phaseRaw) ?? .work
         let now = Date()
         let safeTaskName = taskName?.isEmpty == true ? nil : taskName
+        let endDate = now.addingTimeInterval(TimeInterval(totalSeconds))
         let contentState = FocusFlowAttributes.ContentState(
             phase: phase,
             secondsRemaining: totalSeconds,
             totalSeconds: totalSeconds,
             isPaused: false,
             taskName: safeTaskName,
-            updatedAt: now
+            updatedAt: now,
+            endDate: endDate,
+            cycleIndex: cycleIndex,
+            cycleTotal: cycleTotal
         )
         let attributes = FocusFlowAttributes(sessionId: sessionId, startedAt: now)
 
         _ = endActivity()
 
         do {
-            let content = ActivityContent(state: contentState, staleDate: now.addingTimeInterval(TimeInterval(totalSeconds + 60)))
+            let content = ActivityContent(state: contentState, staleDate: endDate.addingTimeInterval(60))
             let activity = try Activity<FocusFlowAttributes>.request(
                 attributes: attributes,
                 content: content,
@@ -102,10 +108,13 @@ public final class LiveActivityController: NSObject {
                 taskName: safeTaskName,
                 startedAt: now,
                 updatedAt: now,
-                sessionId: sessionId
+                sessionId: sessionId,
+                endDate: endDate,
+                cycleIndex: cycleIndex,
+                cycleTotal: cycleTotal
             ))
             WidgetCenter.shared.reloadAllTimelines()
-            os_log("Started live activity: %@ (phase=%{public}@, total=%d)", log: log, type: .info, activity.id, phaseRaw, totalSeconds)
+            os_log("Started live activity: %@ (phase=%{public}@, total=%d, cycle=%d/%d)", log: log, type: .info, activity.id, phaseRaw, totalSeconds, cycleIndex + 1, cycleTotal)
             return true
         } catch {
             os_log("Failed to start live activity: %{public}@", log: log, type: .error, String(describing: error))
@@ -117,7 +126,9 @@ public final class LiveActivityController: NSObject {
         secondsRemaining: Int,
         isPaused: Bool,
         phaseRaw: String,
-        taskName: String?
+        taskName: String?,
+        cycleIndex: Int,
+        cycleTotal: Int
     ) -> Bool {
         guard let activityId = currentActivityId else { return false }
         guard #available(iOS 16.2, *) else { return false }
@@ -129,26 +140,52 @@ public final class LiveActivityController: NSObject {
         Task {
             for activity in Activity<FocusFlowAttributes>.activities where activity.id == activityId {
                 let currentTotal = max(activity.content.state.totalSeconds, secondsRemaining, 1)
+                // When paused we drop endDate entirely so the views freeze on
+                // the static secondsRemaining. When running we recompute
+                // endDate from "now + secondsRemaining" WITHOUT clamping, so
+                // when the session has run past its target the endDate ends
+                // up in the past and the view can switch to overtime
+                // rendering (red text + "Over X:XX" caption). Clamping here
+                // would silently hide overtime.
+                let newEndDate: Date? = isPaused
+                    ? nil
+                    : now.addingTimeInterval(TimeInterval(secondsRemaining))
                 let newState = FocusFlowAttributes.ContentState(
                     phase: phase,
-                    secondsRemaining: max(0, secondsRemaining),
+                    secondsRemaining: secondsRemaining,
                     totalSeconds: currentTotal,
                     isPaused: isPaused,
                     taskName: safeTaskName,
-                    updatedAt: now
+                    updatedAt: now,
+                    endDate: newEndDate,
+                    cycleIndex: cycleIndex,
+                    cycleTotal: cycleTotal
                 )
-                let staleDate = isPaused ? now.addingTimeInterval(60 * 60 * 24) : now.addingTimeInterval(TimeInterval(max(0, secondsRemaining) + 60))
+                let staleDate: Date
+                if isPaused {
+                    staleDate = now.addingTimeInterval(60 * 60 * 24)
+                } else if let endDate = newEndDate, endDate > now {
+                    staleDate = endDate.addingTimeInterval(60)
+                } else {
+                    // Overtime or just-expired: don't tie staleDate to a
+                    // past endDate. Stale an hour out so the activity
+                    // survives a backgrounded app without flickering off.
+                    staleDate = now.addingTimeInterval(60 * 60)
+                }
                 await activity.update(ActivityContent(state: newState, staleDate: staleDate))
 
                 SharedStorage.writeState(SharedTimerState(
                     phase: phase,
-                    secondsRemaining: max(0, secondsRemaining),
+                    secondsRemaining: secondsRemaining,
                     totalSeconds: currentTotal,
                     isPaused: isPaused,
                     taskName: safeTaskName,
                     startedAt: activity.attributes.startedAt,
                     updatedAt: now,
-                    sessionId: activity.attributes.sessionId
+                    sessionId: activity.attributes.sessionId,
+                    endDate: newEndDate,
+                    cycleIndex: cycleIndex,
+                    cycleTotal: cycleTotal
                 ))
                 WidgetCenter.shared.reloadAllTimelines()
                 return

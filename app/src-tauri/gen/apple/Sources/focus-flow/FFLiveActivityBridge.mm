@@ -126,7 +126,7 @@ void ff_live_activity_set_enabled(bool enabled) {
 }
 
 __attribute__((visibility("default"), used))
-bool ff_live_activity_start(const char * session_id, const char * phase, int32_t total_seconds, const char * _Nullable task_name) {
+bool ff_live_activity_start(const char * session_id, const char * phase, int32_t total_seconds, const char * _Nullable task_name, int32_t cycle_index, int32_t cycle_total) {
     id shared = FFLAC_Shared();
     if (shared == NULL) return false;
 
@@ -135,19 +135,19 @@ bool ff_live_activity_start(const char * session_id, const char * phase, int32_t
     NSString *taskStr = FFLAC_Str(task_name);
     if (sidStr == NULL || phaseStr == NULL) return false;
 
-    SEL sel = NSSelectorFromString(@"startActivityWithSessionId:phaseRaw:totalSeconds:taskName:");
+    SEL sel = NSSelectorFromString(@"startActivityWithSessionId:phaseRaw:totalSeconds:taskName:cycleIndex:cycleTotal:");
     if (![shared respondsToSelector:sel]) return false;
 
-    BOOL (*msg)(id, SEL, NSString *, NSString *, int32_t, NSString *) =
-        (BOOL (*)(id, SEL, NSString *, NSString *, int32_t, NSString *))objc_msgSend;
+    BOOL (*msg)(id, SEL, NSString *, NSString *, int32_t, NSString *, int32_t, int32_t) =
+        (BOOL (*)(id, SEL, NSString *, NSString *, int32_t, NSString *, int32_t, int32_t))objc_msgSend;
     // Pass `taskStr` directly (may be nil). Do NOT fall back to [NSNull null] —
     // Swift's Obj-C bridge for `String?` expects nil, and NSNull is not an
     // NSString, which would crash when Swift tries to bridge the value.
-    return msg(shared, sel, sidStr, phaseStr, total_seconds, taskStr);
+    return msg(shared, sel, sidStr, phaseStr, total_seconds, taskStr, cycle_index, cycle_total);
 }
 
 __attribute__((visibility("default"), used))
-bool ff_live_activity_update(int32_t seconds_remaining, bool is_paused, const char * phase, const char * _Nullable task_name) {
+bool ff_live_activity_update(int32_t seconds_remaining, bool is_paused, const char * phase, const char * _Nullable task_name, int32_t cycle_index, int32_t cycle_total) {
     id shared = FFLAC_Shared();
     if (shared == NULL) return false;
 
@@ -155,13 +155,13 @@ bool ff_live_activity_update(int32_t seconds_remaining, bool is_paused, const ch
     NSString *taskStr = FFLAC_Str(task_name);
     if (phaseStr == NULL) return false;
 
-    SEL sel = NSSelectorFromString(@"updateActivityWithSecondsRemaining:isPaused:phaseRaw:taskName:");
+    SEL sel = NSSelectorFromString(@"updateActivityWithSecondsRemaining:isPaused:phaseRaw:taskName:cycleIndex:cycleTotal:");
     if (![shared respondsToSelector:sel]) return false;
 
-    BOOL (*msg)(id, SEL, int32_t, BOOL, NSString *, NSString *) =
-        (BOOL (*)(id, SEL, int32_t, BOOL, NSString *, NSString *))objc_msgSend;
+    BOOL (*msg)(id, SEL, int32_t, BOOL, NSString *, NSString *, int32_t, int32_t) =
+        (BOOL (*)(id, SEL, int32_t, BOOL, NSString *, NSString *, int32_t, int32_t))objc_msgSend;
     // See comment in ff_live_activity_start: pass nil, never [NSNull null].
-    return msg(shared, sel, seconds_remaining, is_paused ? YES : NO, phaseStr, taskStr);
+    return msg(shared, sel, seconds_remaining, is_paused ? YES : NO, phaseStr, taskStr, cycle_index, cycle_total);
 }
 
 __attribute__((visibility("default"), used))

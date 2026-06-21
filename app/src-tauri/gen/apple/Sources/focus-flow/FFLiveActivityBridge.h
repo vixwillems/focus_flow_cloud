@@ -33,13 +33,17 @@ FF_LIVE_ACTIVITY_EXPORT bool ff_live_activity_start(
     const char * _Nonnull session_id,
     const char * _Nonnull phase,
     int32_t total_seconds,
-    const char * _Nullable task_name
+    const char * _Nullable task_name,
+    int32_t cycle_index,
+    int32_t cycle_total
 );
 FF_LIVE_ACTIVITY_EXPORT bool ff_live_activity_update(
     int32_t seconds_remaining,
     bool is_paused,
     const char * _Nonnull phase,
-    const char * _Nullable task_name
+    const char * _Nullable task_name,
+    int32_t cycle_index,
+    int32_t cycle_total
 );
 FF_LIVE_ACTIVITY_EXPORT bool ff_live_activity_end(void);
 FF_LIVE_ACTIVITY_EXPORT void ff_live_activity_end_all(void);

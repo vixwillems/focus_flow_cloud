@@ -28,9 +28,11 @@ type FnIsEnabled = unsafe extern "C" fn() -> bool;
 #[cfg(target_os = "ios")]
 type FnSetEnabled = unsafe extern "C" fn(bool);
 #[cfg(target_os = "ios")]
-type FnStart = unsafe extern "C" fn(*const c_char, *const c_char, c_int, *const c_char) -> bool;
+type FnStart =
+    unsafe extern "C" fn(*const c_char, *const c_char, c_int, *const c_char, c_int, c_int) -> bool;
 #[cfg(target_os = "ios")]
-type FnUpdate = unsafe extern "C" fn(c_int, bool, *const c_char, *const c_char) -> bool;
+type FnUpdate =
+    unsafe extern "C" fn(c_int, bool, *const c_char, *const c_char, c_int, c_int) -> bool;
 #[cfg(target_os = "ios")]
 type FnEnd = unsafe extern "C" fn() -> bool;
 #[cfg(target_os = "ios")]
@@ -166,6 +168,8 @@ pub fn live_activity_start(
     phase: String,
     total_seconds: i32,
     task_name: Option<String>,
+    cycle_index: i32,
+    cycle_total: i32,
 ) -> bool {
     let f = match loader::fns().start {
         Some(f) => f,
@@ -178,7 +182,16 @@ pub fn live_activity_start(
         .as_ref()
         .map(|s| s.as_ptr())
         .unwrap_or(std::ptr::null());
-    unsafe { f(sid.as_ptr(), p.as_ptr(), total_seconds, name_ptr) }
+    unsafe {
+        f(
+            sid.as_ptr(),
+            p.as_ptr(),
+            total_seconds,
+            name_ptr,
+            cycle_index,
+            cycle_total,
+        )
+    }
 }
 
 #[cfg(not(target_os = "ios"))]
@@ -188,6 +201,8 @@ pub fn live_activity_start(
     _phase: String,
     _total_seconds: i32,
     _task_name: Option<String>,
+    _cycle_index: i32,
+    _cycle_total: i32,
 ) -> bool {
     false
 }
@@ -199,6 +214,8 @@ pub fn live_activity_update(
     is_paused: bool,
     phase: String,
     task_name: Option<String>,
+    cycle_index: i32,
+    cycle_total: i32,
 ) -> bool {
     let f = match loader::fns().update {
         Some(f) => f,
@@ -210,7 +227,16 @@ pub fn live_activity_update(
         .as_ref()
         .map(|s| s.as_ptr())
         .unwrap_or(std::ptr::null());
-    unsafe { f(seconds_remaining, is_paused, p.as_ptr(), name_ptr) }
+    unsafe {
+        f(
+            seconds_remaining,
+            is_paused,
+            p.as_ptr(),
+            name_ptr,
+            cycle_index,
+            cycle_total,
+        )
+    }
 }
 
 #[cfg(not(target_os = "ios"))]
@@ -220,6 +246,8 @@ pub fn live_activity_update(
     _is_paused: bool,
     _phase: String,
     _task_name: Option<String>,
+    _cycle_index: i32,
+    _cycle_total: i32,
 ) -> bool {
     false
 }

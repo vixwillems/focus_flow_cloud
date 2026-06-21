@@ -26,9 +26,9 @@ public enum FocusPhase: String, Codable, Hashable, Sendable, CaseIterable {
 
     public var symbol: String {
         switch self {
-        case .work: return "circle.inset.filled"
+        case .work: return "book.fill"
         case .shortBreak: return "cup.and.saucer.fill"
-        case .longBreak: return "leaf.fill"
+        case .longBreak: return "cup.and.saucer.fill"
         case .idle: return "moon.zzz.fill"
         }
     }
@@ -43,6 +43,22 @@ public struct SharedTimerState: Codable, Hashable, Sendable {
     public var startedAt: Date?
     public var updatedAt: Date
     public var sessionId: String?
+    /// The wall-clock moment the timer should hit 0. `nil` when paused
+    /// (the views freeze on the static `secondsRemaining` value) or when
+    /// the timer is idle. WidgetKit / ActivityKit render the ticking text
+    /// via `Text(timerInterval:endDate...)`, so the displayed countdown
+    /// updates once per second even while the host app is suspended.
+    public var endDate: Date?
+    /// 0-based index of the current / just-completed work session in the
+    /// Pomodoro cycle. For a Work session that is the 2nd of 4 this is
+    /// `1`; for the ShortBreak that follows that work session this is
+    /// also `1` (the break doesn't get its own index — the cycle bar
+    /// marks the work session that was just completed).
+    public var cycleIndex: Int
+    /// Total number of work sessions in a cycle (the long-break
+    /// threshold). Typically 4. The cycle bar renders exactly this
+    /// many segments.
+    public var cycleTotal: Int
 
     public init(
         phase: FocusPhase = .idle,
@@ -52,7 +68,10 @@ public struct SharedTimerState: Codable, Hashable, Sendable {
         taskName: String? = nil,
         startedAt: Date? = nil,
         updatedAt: Date = .init(),
-        sessionId: String? = nil
+        sessionId: String? = nil,
+        endDate: Date? = nil,
+        cycleIndex: Int = 0,
+        cycleTotal: Int = 1
     ) {
         self.phase = phase
         self.secondsRemaining = secondsRemaining
@@ -62,6 +81,9 @@ public struct SharedTimerState: Codable, Hashable, Sendable {
         self.startedAt = startedAt
         self.updatedAt = updatedAt
         self.sessionId = sessionId
+        self.endDate = endDate
+        self.cycleIndex = cycleIndex
+        self.cycleTotal = max(1, cycleTotal)
     }
 
     public static let idle = SharedTimerState(phase: .idle)

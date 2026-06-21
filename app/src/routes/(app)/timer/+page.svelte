@@ -150,6 +150,26 @@
         return `${session.sessionType}:${session.sessionStartTime}`;
     }
 
+    // Compute the 0-based cycle position for the Live Activity cycle bar.
+    // For Work: the session currently running (completedWorkSessions is the
+    // 0-based index of the session about to start). For breaks: the work
+    // session that just completed (completedWorkSessions - 1, clamped).
+    // cycleTotal is longBreakInterval (typically 4).
+    let liveCycleIndex = $derived.by(() => {
+        const ws = $wsStore.state;
+        if (!ws) return 0;
+        if (!session) return 0;
+        const total = Math.max(1, ws.longBreakInterval);
+        if (session.sessionType === "Work") {
+            return Math.min(ws.completedWorkSessions, total - 1);
+        }
+        // ShortBreak / LongBreak
+        return Math.max(0, Math.min(ws.completedWorkSessions - 1, total - 1));
+    });
+    let liveCycleTotal = $derived(
+        Math.max(1, $wsStore.state?.longBreakInterval ?? 1)
+    );
+
     $effect(() => {
         const currentId = liveSessionKey();
         const phase = session ? sessionTypeToPhase(session.sessionType) : null;
@@ -162,6 +182,8 @@
                 phase,
                 totalSeconds: total,
                 taskName: taskTitle,
+                cycleIndex: liveCycleIndex,
+                cycleTotal: liveCycleTotal,
             }).catch(() => {});
             lastTrackedSessionId = currentId;
             lastPhaseForLive = phase;
@@ -178,6 +200,8 @@
                 phase,
                 totalSeconds: total,
                 taskName: taskTitle,
+                cycleIndex: liveCycleIndex,
+                cycleTotal: liveCycleTotal,
             }).catch(() => {});
             lastPhaseForLive = phase;
             lastLiveUpdateAt = Date.now();
@@ -191,12 +215,16 @@
         if (now - lastLiveUpdateAt < 5_000) return;
         const phase = sessionTypeToPhase(session.sessionType);
         if (!phase) return;
-        const remainingForLive = Math.max(0, remaining);
+        // Pass the raw remaining value (can be negative during overtime)
+        // so the iOS side can switch to overtime rendering.
+        const remainingForLive = remaining;
         updateLiveActivity({
             secondsRemaining: remainingForLive,
             isPaused: false,
             phase,
             taskName: $timerStore.selectedTask?.title ?? null,
+            cycleIndex: liveCycleIndex,
+            cycleTotal: liveCycleTotal,
         }).catch(() => {});
         lastLiveUpdateAt = now;
     });

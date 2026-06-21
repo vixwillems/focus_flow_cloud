@@ -38,6 +38,7 @@ function createWsStore() {
     let retryCount = 0
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let active = false
+    let connectedFlag = false
 
     function handleStateUpdate(next: PomodoroWsState) {
         update((s) => ({ ...s, state: next }))
@@ -53,6 +54,7 @@ function createWsStore() {
         ws.onopen = () => {
             if (!active) { ws?.close(); return }
             retryCount = 0
+            connectedFlag = true
             update((s) => ({ ...s, connected: true, error: null }))
             ws?.send(JSON.stringify({ requestSync: null }))
         }
@@ -75,6 +77,7 @@ function createWsStore() {
 
         ws.onclose = () => {
             if (!active) return
+            connectedFlag = false
             update((s) => ({ ...s, connected: false }))
             ws = null
             const delay = Math.min(RECONNECT_BASE * 2 ** retryCount, RECONNECT_MAX)
@@ -94,6 +97,7 @@ function createWsStore() {
             clearTimeout(retryTimer)
             ws?.close()
             ws = null
+            connectedFlag = false
             set({ state: null, connected: false, error: null })
         },
         send(cmd: WsCmd) {
@@ -106,6 +110,13 @@ function createWsStore() {
                 case 'updateScore': ws.send(JSON.stringify({ updateConcentrationScore: { concentrationScore: cmd.score } })); break
                 case 'updateContext': ws.send(JSON.stringify({ updatePomodoroContext: { taskId: cmd.taskId } })); break
             }
+        },
+        /// Synchronous read of the open-state flag. Used by the deep-link
+        /// handler to wait for the socket to come up before sending a
+        /// command (a `send()` on a not-yet-open socket is silently
+        /// dropped).
+        isConnected(): boolean {
+            return connectedFlag
         },
     }
 }

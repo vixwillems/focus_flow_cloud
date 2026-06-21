@@ -82,6 +82,8 @@ export async function startLiveActivity(opts: {
     phase: LivePhase
     totalSeconds: number
     taskName?: string | null
+    cycleIndex: number
+    cycleTotal: number
 }) {
     if (!liveActivityUserEnabled()) return false
     if (!(await liveActivityAvailable())) return false
@@ -91,6 +93,8 @@ export async function startLiveActivity(opts: {
             phase: opts.phase,
             totalSeconds: opts.totalSeconds,
             taskName: opts.taskName ?? null,
+            cycleIndex: opts.cycleIndex,
+            cycleTotal: opts.cycleTotal,
         })
     } catch {
         return false
@@ -102,6 +106,8 @@ export async function updateLiveActivity(opts: {
     isPaused: boolean
     phase: LivePhase
     taskName?: string | null
+    cycleIndex: number
+    cycleTotal: number
 }) {
     if (!liveActivityUserEnabled()) return false
     if (!(await liveActivityAvailable())) return false
@@ -111,6 +117,8 @@ export async function updateLiveActivity(opts: {
             isPaused: opts.isPaused,
             phase: opts.phase,
             taskName: opts.taskName ?? null,
+            cycleIndex: opts.cycleIndex,
+            cycleTotal: opts.cycleTotal,
         })
     } catch {
         return false

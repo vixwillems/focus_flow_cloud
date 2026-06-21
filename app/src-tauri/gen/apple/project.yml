@@ -2,7 +2,7 @@ name: focus-flow
 options:
   bundleIdPrefix: com.francescopio.focusflow
   deploymentTarget:
-    iOS: 14.0
+    iOS: 16.0
 fileGroups: [../../src]
 configs:
   debug: debug
@@ -85,6 +85,15 @@ targets:
         CFBundleVersion: "1.1.0"
         NSSupportsLiveActivities: true
         NSSupportsLiveActivitiesFrequentUpdates: true
+        # Register the `focusflow://` URL scheme so that Live Activity
+        # `Link`s (e.g. the Break / Skip button on the Dynamic Island)
+        # actually open the app instead of being no-ops. The Svelte app
+        # needs a deep-link handler (e.g. via `tauri-plugin-deep-link`)
+        # to map the URL to a `breakEvent` WebSocket command.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.francescopio.focusflow
+            CFBundleURLSchemes:
+              - focusflow
     entitlements:
       path: focus-flow_iOS/focus-flow_iOS.entitlements
       properties:

@@ -12,6 +12,7 @@
         startReminderPoller,
         stopReminderPoller,
     } from "$lib/reminderPoller";
+    import { setupDeepLinks } from "$lib/deepLink";
     import "../app.css";
 
     const { children } = $props();
@@ -40,6 +41,11 @@
 
         if (isTauri) {
             requestNotificationPermission().catch(() => {});
+            // Register the Live Activity "Break / Skip" deep-link handler.
+            // Idempotent: the function itself guards against double
+            // registration. The handler starts the WebSocket and waits
+            // up to 2s for it to open before dispatching breakEvent.
+            setupDeepLinks();
         }
 
         const unsubscribe = authStore.subscribe((state) => {
