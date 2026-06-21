@@ -386,6 +386,43 @@ xcrun devicectl device install app --device <UDID> \
 
 The release IPA is smaller (~82 MB vs ~90 MB for debug) and works on any device without local-network gymnastics. If you need hot-reload later, build debug for the iPhone with a working dev server and a reachable `devUrl`, and release for everything else.
 
+### Local `.git/objects` ended up root-owned (the "missing blob" trap)
+
+If a previous `cargo`, `pnpm`, or Docker build was run under `sudo` (or anything else that escalated to root), the pack and loose-object directories under `.git/objects/xx/` can end up owned by `root:staff` instead of `vix:staff`. From your user account you can still *read* the pack (because the files are world-readable), but you cannot *write* new objects into those directories. Symptoms:
+
+- `git fetch` aborts with `unpack-objects failed: insufficient permission for adding an object to repository database .git/objects`.
+- `git hash-object -w <file>` fails with `insufficient permission ...` only when the SHA's first two hex chars happen to land on a root-owned subdir. The same command succeeds for SHAs in vix-owned subdirs — making the failure look random.
+- `git pull`, `gh repo sync`, and `git push` to a non-FF remote all hit the same wall, because they all need to write new objects locally before doing anything else.
+
+**Workaround when the local repo is wedged but you don't have sudo handy** (this is the path that pushed `fix(iOS): make Live Activities and widgets actually work end-to-end`):
+
+```sh
+# 1. Fresh clone to a clean location (clean .git/objects owned by vix).
+rm -rf /tmp/focus_flow_push
+git clone https://github.com/vixwillems/focus_flow_cloud.git /tmp/focus_flow_push
+cd /tmp/focus_flow_push
+
+# 2. Export every unpushed local commit as a patch (in the *original* repo).
+cd <original-repo>
+git format-patch <last-pushed-sha>..HEAD -o /tmp/patches/
+
+# 3. Apply in order in the fresh clone.
+cd /tmp/focus_flow_push
+rm -rf .git/rebase-apply .git/rebase-merge   # in case a previous am was interrupted
+git am /tmp/patches/*.patch
+
+# 4. Push. Note: the new commits will have *different SHAs* (git assigns new
+#    ones when applying a patch), but the diff content is identical.
+git push origin master
+
+# 5. (Optional) Bring the original local repo in sync by hand — update its
+#    master ref to the new remote SHA, since you cannot `git fetch` in it.
+```
+
+**Permanent fix** (when you next have sudo on the Mac): `sudo chown -R vix:staff /Users/vix/development/focus_flow_cloud/.git/objects`. After that, normal `git` workflows resume.
+
+**Prevention:** don't run `cargo`, `pnpm`, `bun`, or any toolchain under `sudo` inside this repo. If a build genuinely needs root (rare — only the Tauri iOS SDK patches in `app/ios-fix.md`), do it from a separate directory or via a build container.
+
 ### Server-side fact sheet
 
 - Server: `agent@focuscloud` (Debian 13 trixie, 2 CPU / 4 GB / 20 GB).
