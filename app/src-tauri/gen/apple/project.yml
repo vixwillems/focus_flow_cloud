@@ -1,4 +1,18 @@
 name: focus-flow
+# IMPORTANT: This file is the source of truth for the iOS project
+# (Info.plist, entitlements, build settings, sources). Running
+# `xcodegen generate` from this directory will REGENERATE Info.plist
+# and the entitlements file from the `info.properties` and
+# `entitlements.properties` blocks below. Any direct edits to those
+# two files are silently overwritten. If you need to add a key,
+# add it here, then run `just ios-regen` (see AGENTS.md).
+#
+# Do NOT run `tauri ios init` after customizing this project — it
+# re-creates the iOS scaffold from scratch and wipes project.yml,
+# Info.plist, entitlements, the bridge sources, the Live Activity
+# controller, the Shared/ Swift sources, and the widget extension
+# spec. See AGENTS.md, "iOS project: project.yml is the source of
+# truth", for the full regen contract and the pre-commit check.
 options:
   bundleIdPrefix: com.francescopio.focusflow
   deploymentTarget:
@@ -94,6 +108,13 @@ targets:
           - CFBundleURLName: com.francescopio.focusflow
             CFBundleURLSchemes:
               - focusflow
+        # Lets the dev build load `http://localhost:5173` (the Tauri
+        # devUrl). Production builds load from the bundled static assets
+        # and don't need this. Without it, the dev build silently
+        # fails with ATS errors. Listed here so it survives a
+        # `xcodegen generate` regen.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
     entitlements:
       path: focus-flow_iOS/focus-flow_iOS.entitlements
       properties:
